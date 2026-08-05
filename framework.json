@@ -1,0 +1,184 @@
+{
+  "name": "chartworkai",
+  "version": "1.0.0",
+  "description": "The governance layer for agentic work \u2014 repo-native charter, decisions, handoffs and phase gates for long-running projects.",
+  "default_profile": "data-science",
+  "profiles": {
+    "data-science": {
+      "description": "Quantitative analysis / research pipeline producing reproducible figures, tables, and a report.",
+      "requires_data_contracts": true,
+      "reproducibility": "byte-identical rebuild from raw via the project's verify command",
+      "required_files": [
+        "docs/data/data_dictionary.md",
+        "docs/data/lineage.md",
+        "docs/data/watchlist.md"
+      ],
+      "required_directories": [
+        "docs/data"
+      ],
+      "default_roles": [
+        "Orchestrator",
+        "Domain Expert",
+        "Data Engineer",
+        "Analyst",
+        "QA / Reproducibility Engineer"
+      ],
+      "spec": "profiles/data-science.md"
+    },
+    "software-app": {
+      "description": "Software or web/app project whose deliverable is running, deployable software.",
+      "requires_data_contracts": false,
+      "reproducibility": "build + automated tests pass via the project's verify command (e.g. a build + test target)",
+      "required_files": [],
+      "required_directories": [],
+      "default_roles": [
+        "Orchestrator",
+        "Domain Expert",
+        "Software Engineer",
+        "Frontend Engineer",
+        "Deployment Engineer",
+        "QA Engineer"
+      ],
+      "spec": "profiles/software-app.md"
+    },
+    "database": {
+      "description": "Curated database/dataset as the deliverable.",
+      "requires_data_contracts": true,
+      "reproducibility": "deterministic rebuild from raw meeting stated quality baselines (row counts, key uniqueness, referential integrity) via the verify command",
+      "required_files": [
+        "docs/data/data_dictionary.md",
+        "docs/data/lineage.md",
+        "docs/data/watchlist.md"
+      ],
+      "required_directories": [
+        "docs/data"
+      ],
+      "default_roles": [
+        "Orchestrator",
+        "Domain Expert",
+        "Data Engineer",
+        "External Data Specialist",
+        "QA / Reproducibility Engineer"
+      ],
+      "spec": "profiles/database.md"
+    },
+    "competition-ml": {
+      "description": "Leaderboard/competition ML; deliverable is a scored submission + experiment log.",
+      "requires_data_contracts": true,
+      "reproducibility": "the submitted artifact regenerates from a recorded run (fixed seeds, recoverable split, or a cloud run/job URI + image digest)",
+      "required_files": [
+        "docs/data/data_dictionary.md",
+        "docs/data/lineage.md",
+        "docs/data/watchlist.md"
+      ],
+      "required_directories": [
+        "docs/data"
+      ],
+      "default_roles": [
+        "Orchestrator",
+        "Domain Expert",
+        "Data Engineer",
+        "Analyst",
+        "QA / Reproducibility Engineer"
+      ],
+      "recommended_extensions": [
+        "extensions/experiment-log"
+      ],
+      "spec": "profiles/competition-ml.md"
+    },
+    "investigation": {
+      "description": "Investigative / knowledge-base; deliverable is an evidence-backed dataset or report.",
+      "requires_data_contracts": false,
+      "reproducibility": "every published claim traces to an archived source at a stated evidence tier",
+      "required_files": [],
+      "required_directories": [],
+      "default_roles": [
+        "Orchestrator",
+        "Domain Expert",
+        "Producer",
+        "Fact-checker",
+        "QA"
+      ],
+      "recommended_extensions": [
+        "extensions/claims-gate"
+      ],
+      "spec": "profiles/investigation.md"
+    },
+    "deployed-service": {
+      "description": "A deployed service/app with cloud infrastructure.",
+      "requires_data_contracts": false,
+      "reproducibility": "config + image digest + job/run URI trace a live release back to a commit, with a tested rollback",
+      "required_files": [],
+      "required_directories": [],
+      "default_roles": [
+        "Orchestrator",
+        "Domain Expert",
+        "Software Engineer",
+        "Frontend Engineer",
+        "Deployment Engineer",
+        "QA"
+      ],
+      "spec": "profiles/deployed-service.md"
+    }
+  },
+  "required_files": [
+    "PROJECT_CHARTER.md",
+    "AGENTS.md",
+    "docs/phase_plan.md",
+    "STATUS.md",
+    "TASKS.md",
+    "docs/decisions/README.md",
+    "docs/handoffs/README.md",
+    "docs/domain/README.md"
+  ],
+  "required_directories": [
+    "docs/decisions",
+    "docs/handoffs",
+    "docs/domain"
+  ],
+  "templates": [
+    "templates/PROJECT_CHARTER.template.md",
+    "templates/AGENTS.template.md",
+    "templates/STATUS.template.md",
+    "templates/TASKS.template.md",
+    "templates/phase_plan.template.md",
+    "templates/style_guide.template.md",
+    "templates/data_contracts/data_dictionary.template.md",
+    "templates/data_contracts/lineage.template.md",
+    "templates/data_contracts/watchlist.template.md",
+    "templates/decisions/YYYYMMDD_decision.template.md",
+    "templates/handoffs/YYYY-MM-DD_agent.template.md"
+  ],
+  "prompts": [
+    "prompts/01_initial_planning.md",
+    "prompts/02_agent_generation.md",
+    "prompts/03_phase_roadmap.md",
+    "prompts/04_orchestration_turn.md",
+    "prompts/05_decision_capture.md",
+    "prompts/06_handoff_writeup.md",
+    "prompts/07_reflection.md"
+  ],
+  "scripts": [
+    "scripts/init_project_from_framework.sh",
+    "scripts/check_framework_compliance.sh",
+    "scripts/generate_phase_plan.sh"
+  ],
+  "extensions": [
+    "extensions/external-tracker-sync",
+    "extensions/claims-gate",
+    "extensions/experiment-log",
+    "extensions/assistant-primer"
+  ],
+  "compliance_checks": [
+    "universal required files and directories exist",
+    "data-contract triad required only for data profiles (data-science, database, competition-ml)",
+    "at least one seed decision exists",
+    "handoff README or at least one handoff exists",
+    "no duplicate H2 headings in living documents",
+    "no unresolved placeholder tokens in active docs/config (the framework repo prunes its own templates/agents/prompts)",
+    "TASKS.md has exactly one In Progress section",
+    "TASKS.md uses checkbox bullets instead of Markdown tables",
+    "docs/phase_plan.md current phase number appears in PROJECT_CHARTER.md",
+    "decision files are linked from PROJECT_CHARTER.md"
+  ]
+}

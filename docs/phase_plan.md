@@ -1,0 +1,58 @@
+# Phase Plan — ChartworkAI: Productization
+
+> ⚠️ **STOP — READ BEFORE EDITING.**
+> 1. Read this entire file first. 2. Edit sections **in place** — never append a second copy of a section. 3. Hard cap: **200 lines**. 4. If a section is duplicated or this file exceeds the cap, prune to a single canonical form before adding anything.
+
+**Last updated:** 2026-08-05
+**Current phase:** Phase 4 — ChartworkAI package & launch
+**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 ships the product as software: the `chartworkai` CLI now covers `init`, `check`, `plan`, `state`, and `mcp`, with framework assets packaged in the wheel and shell/Python scaffold parity enforced in CI. Remaining before launch: publish v0.1.0 to PyPI (T-020), make `framework.json` authoritative (T-016), then the CrewAI adapter (T-018).
+
+## Active agents
+
+| Agent | Status | Current task | Blocking on |
+|---|---|---|---|
+| Orchestrator | Idle | Available for assignment | — |
+| Framework Architect | Idle | Available for assignment | — |
+| Template & Docs Engineer | Idle | Available for assignment | — |
+| Dogfood & Compliance QA | Active | T-020 — Publish v0.1.0 to PyPI + GitHub release | — |
+| Audit & Research Analyst | Standby | Available for assignment | — |
+
+## Current phase exit criteria (Phase 4)
+
+- [x] Scaffold-cleanup check (`_framework_*`) and tool-specific leak checker (T-011).
+- [x] Project initialization script copies extensions and guides cleanup (T-011).
+- [x] Repositioning and generalization to drop assistant-exclusive framing (T-012).
+- [x] Product model and go-to-market strategy defined (DEC-004) (T-012).
+
+## Dispatch queue (next up)
+
+- T-016 — Make `framework.json` authoritative
+- T-018 — CrewAI adapter (`chartworkai export/ingest crewai`)
+- T-019 — Docs site + landing page
+- T-021 — Paid concierge beta with three design partners
+
+## Open blockers
+
+- None currently filed.
+
+## Decision log (recent)
+
+| ID | Date | Topic | Status | Authority |
+|---|---|---|---|---|
+| [DEC-009](decisions/20260805_DEC009_release_audit_remediation.md) | 2026-08-05 | Three pre-release audits gate the first publication | Decided | Orchestrator / Dogfood & Compliance QA |
+| [DEC-008](decisions/20260805_DEC008_versioning_scheme.md) | 2026-08-05 | Version the framework and the package separately, with prefixed tags | Decided | Orchestrator |
+| [DEC-007](decisions/20260804_DEC007_final_product_name.md) | 2026-08-04 | Final public name is ChartworkAI | Decided | Orchestrator (with the user) |
+| [DEC-006](decisions/20260804_DEC006_apache_license.md) | 2026-08-04 | License the public core under Apache 2.0 | Decided | Orchestrator (with the user) |
+| [DEC-005](decisions/20260804_DEC005_chartwork_rename.md) | 2026-08-04 | Rename to Chartwork; reposition as the governance layer; ship a Python package | Decided | Orchestrator (with the user) |
+| [DEC-004](decisions/20260613_DEC004_product_model.md) | 2026-06-13 | Product model and go-to-market strategy | Decided | Orchestrator |
+| [DEC-003](decisions/20260607_DEC003_phase1_profiles.md) | 2026-06-07 | Phase 1 direction: software-app first; build the profile system; package four extensions | Decided | Framework Architect / Orchestrator |
+| [DEC-002](decisions/20260607_DEC002_profile_model.md) | 2026-06-07 | Adopt a profile / deliverable-type model; this project uses a non-data-science profile | Decided | Framework Architect |
+| [DEC-001](decisions/20260607_DEC001_self_host.md) | 2026-06-07 | Self-host: manage the framework's productization with the framework | Decided | Orchestrator |
+
+(For full history see `docs/decisions/`.)
+
+## Completed phases
+
+- **Phase 1 — Agnosticism core (2026-06-07):** profile/deliverable-type model + profile-aware checker (FW-001 resolved); de-Pythoned base templates + charter `## Stack` block; profile-aware bootstrap; Software/Deployment/Frontend optional roles; `PORTABILITY.md` (stack/assistant/locale). software-app proven; data profiles still gated. See `docs/reproducibility/phase_1.md`.
+- **Phase 0 — Install & baseline (2026-06-07):** dogfood-installed; 9-project audit recorded; DEC-001/002/003; FW-001 found.
+- **Pre-Phase-0 groundwork (2026-06-07):** four consistency fixes; framework v0.3.0.

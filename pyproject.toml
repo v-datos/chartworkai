@@ -1,0 +1,95 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chartworkai"
+version = "0.1.0"
+description = "The governance layer for agentic work — charter, decisions, handoffs, and phase gates that survive across sessions, assistants, and months."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.9"
+authors = [{ name = "ChartworkAI contributors" }]
+keywords = [
+    "ai-agents", "agents", "governance", "multi-agent", "llm",
+    "audit", "compliance", "project-management", "crewai", "langgraph",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Documentation",
+]
+# Zero runtime dependencies. This is deliberate: ChartworkAI governs projects in any
+# language and must never impose a dependency tree on the repo it audits.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "ruff>=0.5"]
+
+[project.urls]
+Homepage = "https://github.com/v-datos/chartworkai"
+Repository = "https://github.com/v-datos/chartworkai"
+Documentation = "https://github.com/v-datos/chartworkai/blob/main/IMPLEMENTATION_GUIDE.md"
+Changelog = "https://github.com/v-datos/chartworkai/blob/main/CHANGELOG.md"
+Issues = "https://github.com/v-datos/chartworkai/issues"
+
+[project.scripts]
+chartworkai = "chartworkai.cli:main"
+
+[tool.hatch.build.targets.sdist]
+# Ship the sources a wheel can be rebuilt from — and nothing else. Local research
+# artifacts, editor state and virtualenvs are not part of the product.
+exclude = [
+    "/outputs",
+    "/.claude",
+    "/.idea",
+    "/.venv-*",
+    "/dist",
+    "/.DS_Store",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chartworkai"]
+
+# The templates, agent specs, prompts and extensions are the product's content but
+# live at the repository root. Ship them inside the wheel so `chartworkai init`
+# works from a plain `pip install`; chartworkai/assets.py resolves either location.
+[tool.hatch.build.targets.wheel.force-include]
+"templates" = "chartworkai/_assets/templates"
+"agents" = "chartworkai/_assets/agents"
+"prompts" = "chartworkai/_assets/prompts"
+"extensions" = "chartworkai/_assets/extensions"
+"profiles" = "chartworkai/_assets/profiles"
+"scripts/check_framework_compliance.sh" = "chartworkai/_assets/scripts/check_framework_compliance.sh"
+"scripts/generate_phase_plan.sh" = "chartworkai/_assets/scripts/generate_phase_plan.sh"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+# Deliberately conservative. `pyupgrade` (UP) is omitted: ChartworkAI supports
+# Python 3.9, and the explicit `typing` imports read more clearly for that
+# audience than PEP 604 syntax that only works via a __future__ import.
+select = ["E", "F", "I", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests deliberately inspect return codes rather than raising.
+"tests/*" = ["B008"]
+# scaffold.py holds the generated documents verbatim. Their lines are long because
+# the output must stay byte-identical to the shell scaffold; rewrapping them here
+# would silently change what users get.
+"src/chartworkai/scaffold.py" = ["E501"]

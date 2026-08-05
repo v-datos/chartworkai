@@ -1,0 +1,9 @@
+ChartworkAI
+Copyright 2026 ChartworkAI contributors
+
+This product includes software originally developed as the AI Workflow Framework
+and renamed to ChartworkAI in 2026 (see docs/decisions/20260804_DEC005_chartwork_rename.md
+and docs/decisions/20260804_DEC007_final_product_name.md).
+
+Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+License at http://www.apache.org/licenses/LICENSE-2.0

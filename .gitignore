@@ -1,0 +1,37 @@
+.DS_Store
+Thumbs.db
+
+# Editors / IDEs
+.idea/
+.vscode/
+
+# Runtime and generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environments
+.env
+*.env
+.venv/
+.venv-*/
+venv/
+outputs/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Test and coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Local assistant/agent state — machine-specific, never part of the product
+.claude/
+.aider*
+
