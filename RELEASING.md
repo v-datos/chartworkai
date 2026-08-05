@@ -76,24 +76,48 @@ git push origin main
 git push origin chartworkai-v0.1.0
 ```
 
-## 5. Publish (requires your PyPI credentials)
+## 5. Publish
 
-Upload to TestPyPI first and install from it before touching the real index:
+Publishing runs from `.github/workflows/release.yml` using **Trusted Publishing**
+(OIDC). No API token is stored anywhere: PyPI verifies the workflow's identity —
+repository, workflow filename, and environment — and mints a credential good for that
+one upload. A token that does not exist cannot leak.
+
+### One-time setup
+
+On **test.pypi.org** and again on **pypi.org**, under *Publishing → Add a pending
+publisher*, register:
+
+| Field | Value |
+|---|---|
+| PyPI project name | `chartworkai` |
+| Owner | `v-datos` |
+| Repository name | `chartworkai` |
+| Workflow name | `release.yml` |
+| Environment | `testpypi` on TestPyPI, `pypi` on PyPI |
+
+"Pending publisher" is the right form before the project exists; it converts to a
+normal publisher on first upload. Create the two matching GitHub environments under
+*Settings → Environments* — that is what makes the environment name in the claim
+meaningful, and it is where you can add a manual approval gate.
+
+### TestPyPI first
+
+Run the **Release** workflow manually from the Actions tab, then install what it
+published before touching the real index:
 
 ```bash
-twine upload --repository testpypi dist/*
-pip install --index-url https://test.pypi.org/simple/ \
-    --extra-index-url https://pypi.org/simple chartworkai
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple chartworkai
 ```
 
-When that install works:
+### Then PyPI
+
+Pushing the tag is the whole release. The workflow refuses to publish if the tag and
+the packaged version disagree.
 
 ```bash
-twine upload dist/*
+git push origin chartworkai-v0.1.0
 ```
-
-Use an API token (username `__token__`), scoped to this project once it exists. Prefer
-PyPI **Trusted Publishing** over a long-lived token if you later automate this.
 
 ## 6. After the first release
 
