@@ -16,7 +16,6 @@ DIVERGENCE-2  The ``STATUS.md`` date is parsed from any ``## YYYY-MM-DD`` headin
 
 from __future__ import annotations
 
-import json
 import re
 import time
 from pathlib import Path
@@ -202,39 +201,20 @@ def detect_profile(root: Path) -> Tuple[Optional[str], bool]:
     return profile, profile in DATA_PROFILES
 
 
-#: Keys a real ``framework.json`` carries. Being recognised as the framework repo
-#: *relaxes* checks, so the manifest has to prove itself rather than merely exist.
-FRAMEWORK_MANIFEST_KEYS = frozenset(
-    {"name", "version", "profiles", "required_files", "required_directories"}
-)
-
-
 def detect_framework_repo(root: Path) -> bool:
-    """True when auditing ChartworkAI's own repo.
+    """Deprecated. Framework identity is no longer inferred from the audited tree.
 
-    Its product surface (templates, agent specs, prompts) legitimately contains
-    placeholder tokens, and its ``templates/`` directory is not leftover scaffold.
+    Being recognised as the framework repo *relaxes* checks — it stops reporting
+    leftover scaffold, narrows the placeholder scan, and allows assistant names. Any
+    signal read out of the directory under audit can be reproduced inside that
+    directory, so each round of "make the marker harder to fake" only raised the cost
+    of a copy: first a file pair, then a manifest shape, then a manifest shape plus a
+    template. The property being tested was never a property of the tree.
 
-    This is a *relaxation*, which makes it worth spoofing: an empty ``framework.json``
-    beside an empty ``templates/`` used to be enough for a consumer project to
-    suppress its own leftover-scaffold failures. So the manifest must actually parse,
-    declare itself as this framework, and carry the keys the product ships — and the
-    template directory must hold real templates.
+    So the relaxation is now *requested* by whoever runs the check
+    (``chartworkai check --self-audit``), not deduced. Always returns False.
     """
-    manifest = root / "framework.json"
-    if not manifest.is_file() or not (root / "templates").is_dir():
-        return False
-
-    try:
-        data = json.loads(manifest.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return False
-
-    if not isinstance(data, dict) or not FRAMEWORK_MANIFEST_KEYS.issubset(data):
-        return False
-    if str(data.get("name", "")).strip().lower() not in {"chartworkai", "chartwork"}:
-        return False
-    return any((root / "templates").glob("*.template.md"))
+    return False
 
 
 def _scaffold_dirs(root: Path) -> List[Path]:
@@ -736,11 +716,17 @@ def _check_tool_leaks(root: Path, report: Report, framework_repo: bool) -> None:
 # --- Entry point -------------------------------------------------------------
 
 
-def run_checks(project_root) -> Report:
-    """Run every compliance check against *project_root* and return a Report."""
+def run_checks(project_root, self_audit: bool = False) -> Report:
+    """Run every compliance check against *project_root* and return a Report.
+
+    Set *self_audit* only when auditing ChartworkAI's own repository, whose product
+    surface (templates, agent specs, prompts) legitimately contains placeholder tokens
+    and assistant names. It relaxes checks, so it is a claim the caller makes rather
+    than one the audited directory gets to make about itself.
+    """
     root = Path(project_root).resolve()
     profile, is_data_profile = detect_profile(root)
-    framework_repo = detect_framework_repo(root)
+    framework_repo = self_audit
 
     report = Report(
         project_root=str(root),

@@ -16,7 +16,7 @@
 - **Package / environment manager:** none (zero runtime dependencies).
 - **Build command:** none (the product is text + shell scripts).
 - **Test command:** `sh -n scripts/*.sh` + a bootstrap smoke test into a temp dir.
-- **Verify command:** `./scripts/check_framework_compliance.sh .` passes, the bootstrap smoke test behaves, and no tool-specific assumption leaked into a canonical doc.
+- **Verify command:** `./scripts/check_framework_compliance.sh . --self-audit` passes, the bootstrap smoke test behaves, and no tool-specific assumption leaked into a canonical doc.
 
 ---
 

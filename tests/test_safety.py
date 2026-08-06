@@ -723,10 +723,15 @@ class TestFrameworkIdentityCannotBeSpoofed:
         (root / "templates").mkdir()
         assert self._leftover_failures(root) > 0
 
-    def test_the_real_repository_is_still_recognised(self) -> None:
+    def test_identity_is_never_inferred_even_for_the_real_repository(self) -> None:
+        """The strongest possible tree — the actual framework checkout — still does
+        not grant itself the relaxation. That is the point: if the real repo could
+        prove itself from its contents, so could a copy of them."""
         from chartworkai.checks import detect_framework_repo
 
-        assert detect_framework_repo(REPO_ROOT)
+        assert detect_framework_repo(REPO_ROOT) is False
+        assert run_checks(REPO_ROOT).framework_repo is False
+        assert run_checks(REPO_ROOT, self_audit=True).framework_repo is True
 
 
 class TestMcpSurvivesHostileInput:
@@ -751,6 +756,13 @@ class TestMcpSurvivesHostileInput:
     LIST = '{"jsonrpc":"2.0","id":9,"method":"tools/list"}'
 
     def test_deep_nesting_is_rejected_and_the_server_keeps_going(self) -> None:
+        """The requirement is behavioural, not an artifact of the interpreter.
+
+        Asserting "the parser raises RecursionError" tied this to CPython <= 3.13;
+        3.14 parses the same input happily, so the assertion failed there while the
+        actual security property was fine. What must hold on every interpreter is
+        that the message is refused and the session survives it.
+        """
         deep = (
             '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":'
             + "[" * 10000
@@ -761,6 +773,30 @@ class TestMcpSurvivesHostileInput:
 
         assert [r.get("id") for r in replies][0] == 1
         assert "error" in replies[1]
+        assert "deep" in replies[1]["error"]["message"]
+        assert replies[-1]["id"] == 9 and "result" in replies[-1]
+
+    def test_the_depth_limit_is_enforced_before_parsing(self) -> None:
+        from chartworkai.mcp_server import MAX_MESSAGE_DEPTH, _too_deep
+
+        assert _too_deep("[" * (MAX_MESSAGE_DEPTH + 1))
+        assert not _too_deep("[" * MAX_MESSAGE_DEPTH)
+        # Brackets inside a string literal are data, not structure.
+        assert not _too_deep('{"note": "' + "[" * 500 + '"}')
+
+    def test_a_multibyte_message_cannot_exceed_the_byte_limit(self) -> None:
+        """``len()`` counts characters; the stated limit is bytes, and one character
+        can be four of them — so a 600k-character payload smuggled 1.2 MB through."""
+        from chartworkai.mcp_server import MAX_MESSAGE_BYTES
+
+        payload = "é" * ((MAX_MESSAGE_BYTES // 2) + 1000)
+        assert len(payload) < MAX_MESSAGE_BYTES < len(payload.encode("utf-8"))
+
+        message = '{"jsonrpc":"2.0","id":3,"method":"tools/list","params":{"x":"' + payload + '"}}'
+        replies = self._serve(self.HELLO, message, self.LIST)
+
+        assert "error" in replies[1]
+        assert "exceeds" in replies[1]["error"]["message"]
         assert replies[-1]["id"] == 9 and "result" in replies[-1]
 
     def test_an_oversized_message_is_refused_unparsed(self) -> None:

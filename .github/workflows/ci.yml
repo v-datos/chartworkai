@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
         include:
           # Confirm the zero-dependency package works off-Linux too.
           - os: macos-latest
@@ -29,9 +29,9 @@ jobs:
           - os: windows-latest
             python-version: "3.12"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -42,15 +42,15 @@ jobs:
         run: python -m pytest -q
 
       - name: ChartworkAI governs itself (dogfood the linter)
-        run: chartworkai check . --strict
+        run: chartworkai check . --strict --self-audit
 
   lint:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
@@ -81,9 +81,9 @@ jobs:
     name: build and install the distributables
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
@@ -171,7 +171,7 @@ jobs:
           fi
           echo "init refuses to clobber (exit $rc)"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: distributables
           path: dist/*
@@ -180,9 +180,9 @@ jobs:
     name: shell/python parity
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
@@ -222,7 +222,7 @@ jobs:
           fi
 
           # Both must agree that the framework repo itself is compliant.
-          sh scripts/check_framework_compliance.sh . >/dev/null 2>&1 && shell_rc=0 || shell_rc=$?
+          sh scripts/check_framework_compliance.sh . --self-audit >/dev/null 2>&1 && shell_rc=0 || shell_rc=$?
           chartworkai check . >/dev/null 2>&1 && py_rc=0 || py_rc=$?
           echo "framework repo  shell=$shell_rc python=$py_rc"
           if [ "$shell_rc" != "$py_rc" ] || [ "$shell_rc" != "0" ]; then

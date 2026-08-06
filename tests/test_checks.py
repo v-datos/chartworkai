@@ -35,7 +35,7 @@ from conftest import (
     write,
 )
 
-from chartworkai.checks import DATA_PROFILES, detect_framework_repo, detect_profile
+from chartworkai.checks import DATA_PROFILES, detect_profile
 from chartworkai.models import Status
 
 DUPLICATE_H2_TARGETS = (
@@ -177,42 +177,44 @@ class TestProfileDetection:
 
 
 class TestFrameworkRepoDetection:
-    #: A manifest that actually names this framework and carries the keys it ships.
-    VALID_MANIFEST = json.dumps(
-        {
-            "name": "chartworkai",
-            "version": "0.1.0",
-            "profiles": {},
-            "required_files": [],
-            "required_directories": [],
-        }
-    )
-
     @pytest.mark.parametrize(
-        "manifest, template, expected",
+        "manifest, template",
         [
-            (VALID_MANIFEST, "templates/x.template.md", True),
-            (VALID_MANIFEST, None, False),
-            (None, "templates/x.template.md", False),
-            (None, None, False),
-            # Detection *relaxes* checks, so the markers have to prove themselves:
-            # a bare pair of markers used to be enough for any consumer project to
-            # silence its own leftover-scaffold and placeholder failures.
-            ("{}", "templates/x.template.md", False),
-            ('{"name": "chartworkai"}', "templates/x.template.md", False),
-            (VALID_MANIFEST, "templates/charter.md", False),
-            ("not json", "templates/x.template.md", False),
-            (VALID_MANIFEST.replace("chartworkai", "other"), "templates/x.template.md", False),
+            (None, None),
+            ("{}", "templates/x.template.md"),
+            ('{"name": "chartworkai"}', "templates/x.template.md"),
+            (
+                json.dumps(
+                    {
+                        "name": "chartworkai",
+                        "version": "0.1.0",
+                        "profiles": {},
+                        "required_files": [],
+                        "required_directories": [],
+                    }
+                ),
+                "templates/x.template.md",
+            ),
+            ("not json", "templates/x.template.md"),
         ],
+        ids=["nothing", "empty", "name-only", "complete-and-plausible", "unparseable"],
     )
-    def test_detection_requires_a_validated_manifest(self, project, manifest, template, expected):
+    def test_no_tree_can_claim_framework_identity(self, project, manifest, template):
+        """Identity is asserted by the caller, never inferred from what is audited.
+
+        Recognition *relaxes* checks, so every marker-based scheme was spoofable by
+        copying the marker — each round of hardening only raised the price of a copy.
+        Even a complete, plausible manifest beside a real template must not grant it.
+        """
         if manifest is not None:
             write(project, "framework.json", manifest + "\n")
         if template is not None:
             write(project, template, "# Template\n")
 
-        assert detect_framework_repo(project) is expected
-        assert report_for(project).framework_repo is expected
+        assert report_for(project).framework_repo is False
+
+    def test_the_relaxation_is_available_when_the_caller_asks_for_it(self, project):
+        assert report_for(project, self_audit=True).framework_repo is True
 
     @pytest.mark.parametrize(
         "rel", ["templates/charter.md", "agents/orchestrator.md", "prompts/kickoff.md"]
@@ -220,7 +222,7 @@ class TestFrameworkRepoDetection:
     def test_framework_repo_narrows_the_placeholder_scan(self, make, rel):
         framework = make(framework_repo=True)
         write(framework, rel, "# Product surface\n\nOwner: {{OWNER}}\n")
-        assert only(report_for(framework), "placeholders").status == Status.PASS
+        assert only(report_for(framework, self_audit=True), "placeholders").status == Status.PASS
 
         consumer = make(framework_repo=False)
         write(consumer, rel, "# Product surface\n\nOwner: {{OWNER}}\n")
@@ -230,12 +232,12 @@ class TestFrameworkRepoDetection:
     def test_framework_repo_still_scans_core_docs_and_docs_tree(self, make, rel):
         framework = make(framework_repo=True)
         append(framework, rel, "\nOwner: {{OWNER}}\n")
-        assert only(report_for(framework), "placeholders").status == Status.FAIL
+        assert only(report_for(framework, self_audit=True), "placeholders").status == Status.FAIL
 
     def test_framework_repo_disables_the_assistant_name_check(self, make):
         framework = make(framework_repo=True)
         append(framework, "AGENTS.md", "\nWorks with Claude Code and Cursor alike.\n")
-        assert only(report_for(framework), "tool_leak").status == Status.PASS
+        assert only(report_for(framework, self_audit=True), "tool_leak").status == Status.PASS
 
         consumer = make(framework_repo=False)
         append(consumer, "AGENTS.md", "\nWorks with Claude Code and Cursor alike.\n")
@@ -244,7 +246,7 @@ class TestFrameworkRepoDetection:
     def test_framework_repo_skips_the_leftover_scaffold_check(self, make):
         framework = make(framework_repo=True)
         (framework / "_framework_templates").mkdir()
-        assert findings(report_for(framework), "leftover_scaffold") == []
+        assert findings(report_for(framework, self_audit=True), "leftover_scaffold") == []
 
         consumer = make(framework_repo=False)
         (consumer / "_framework_templates").mkdir()
@@ -856,10 +858,10 @@ class TestToolLeaks:
     @pytest.mark.parametrize(
         "name", ["Claude Code", "Cursor", "ChatGPT", "Copilot", "Kimi", "Qwen"]
     )
-    def test_assistant_names_are_allowed_in_the_framework_repo(self, make, name):
+    def test_assistant_names_are_allowed_when_self_auditing(self, make, name):
         project = make(framework_repo=True)
         append(project, "STATUS.md", f"\n- Portability verified with {name}.\n")
-        assert only(report_for(project), "tool_leak").status == Status.PASS
+        assert only(report_for(project, self_audit=True), "tool_leak").status == Status.PASS
 
     def test_both_leak_kinds_are_reported_separately(self, project):
         append(project, "AGENTS.md", "\nRun /read and ask Cursor for a summary.\n")

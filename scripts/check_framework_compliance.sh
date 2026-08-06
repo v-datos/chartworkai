@@ -1,7 +1,10 @@
 #!/usr/bin/env sh
 set -eu
 
-PROJECT_ROOT="${1:-.}"
+case "${1:-}" in
+  --self-audit|"") PROJECT_ROOT="." ;;
+  *) PROJECT_ROOT="$1" ;;
+esac
 # Physical path, used to decide whether a symlink leaves the project.
 PROJECT_ABS="$(CDPATH= cd -P "$PROJECT_ROOT" 2>/dev/null && pwd)" || PROJECT_ABS=""
 
@@ -27,35 +30,18 @@ if [ -f "$charter_for_profile" ]; then
   esac
 fi
 
-# Framework-repo self-detection: the framework's OWN repo legitimately contains
-# {{...}} tokens across its product surface (templates/agents/prompts/examples and
-# the docs that teach placeholders).
+# Framework identity is ASSERTED by the caller, never inferred from the audited
+# tree. It relaxes the placeholder, scaffold and assistant-name checks, and any
+# signal read out of the directory under audit can be reproduced inside it — the
+# previous marker-based detection was spoofable by copying a manifest, and this
+# implementation was the weaker of the two (it substring-matched raw text, so a
+# non-JSON file containing the right words was enough).
 #
-# This RELAXES checks, which makes it worth spoofing: an empty framework.json beside
-# an empty templates/ let a consumer project silence its own leftover-scaffold and
-# placeholder failures. So the manifest must name this framework and carry the keys
-# the product ships, and templates/ must hold real templates. Mirrors
-# detect_framework_repo() in src/chartworkai/checks.py.
+#   scripts/check_framework_compliance.sh [PROJECT_ROOT] [--self-audit]
 FRAMEWORK_REPO=0
-if [ -f "$PROJECT_ROOT/framework.json" ] && [ -d "$PROJECT_ROOT/templates" ] &&
-   ls "$PROJECT_ROOT"/templates/*.template.md >/dev/null 2>&1; then
-  _manifest="$(cat "$PROJECT_ROOT/framework.json" 2>/dev/null || true)"
-  _named=0
-  case "$_manifest" in
-    *'"name"'*'"chartworkai"'*|*'"name"'*'"chartwork"'*|\
-    *'"name"'*"'chartworkai'"*|*'"name"'*"'chartwork'"*) _named=1 ;;
-  esac
-  if [ "$_named" -eq 1 ]; then
-    _complete=1
-    for _key in '"version"' '"profiles"' '"required_files"' '"required_directories"'; do
-      case "$_manifest" in
-        *"$_key"*) ;;
-        *) _complete=0 ;;
-      esac
-    done
-    [ "$_complete" -eq 1 ] && FRAMEWORK_REPO=1
-  fi
-fi
+for _arg in "$@"; do
+  [ "$_arg" = "--self-audit" ] && FRAMEWORK_REPO=1
+done
 
 info() {
   printf '%s\n' "$1"
@@ -345,22 +331,30 @@ check_no_escaping_symlinks() {
   # A governance document must be a real file inside the project. A symlink pointing
   # outside is either a mistake or an attempt to have the tool read and report on a
   # file it was never pointed at. Mirrors the Python checker's escaping_symlinks.
+  #
+  # This runs FIRST and aborts, before any check that reads or echoes file content.
+  # Reporting the escape at the end was useless: by then `check_duplicate_h2` had
+  # already printed headings read straight out of the external file.
   escaped=0
   if [ -n "$PROJECT_ABS" ]; then
     # Scoped to what the checker reads — core docs and docs/ — not the whole tree:
     # a virtualenv is full of legitimate links out, and flagging those would bury the
     # one case that matters.
-    scan_targets="$PROJECT_ROOT/PROJECT_CHARTER.md $PROJECT_ROOT/AGENTS.md"
-    scan_targets="$scan_targets $PROJECT_ROOT/STATUS.md $PROJECT_ROOT/TASKS.md"
-    if [ -L "$PROJECT_ROOT/docs" ]; then
-      scan_targets="$scan_targets $PROJECT_ROOT/docs"
-      doc_links=""
-    elif [ -d "$PROJECT_ROOT/docs" ]; then
-      doc_links="$(find "$PROJECT_ROOT/docs" -type l 2>/dev/null)"
-    else
-      doc_links=""
-    fi
-    for link in $(printf '%s\n%s\n' "$scan_targets" "$doc_links"); do
+    #
+    # Newline-separated, iterated with `read`: word-splitting dropped any path
+    # containing a space, which is exactly the path an attacker would choose.
+    link_list="$(
+      for core in PROJECT_CHARTER.md AGENTS.md STATUS.md TASKS.md; do
+        [ -L "$PROJECT_ROOT/$core" ] && printf '%s\n' "$PROJECT_ROOT/$core"
+      done
+      if [ -L "$PROJECT_ROOT/docs" ]; then
+        printf '%s\n' "$PROJECT_ROOT/docs"
+      elif [ -d "$PROJECT_ROOT/docs" ]; then
+        find "$PROJECT_ROOT/docs" -type l 2>/dev/null
+      fi
+    )"
+    while IFS= read -r link; do
+      [ -n "$link" ] || continue
       [ -L "$link" ] || continue
       target="$(readlink "$link")"
       case "$target" in
@@ -378,10 +372,17 @@ check_no_escaping_symlinks() {
           escaped=$((escaped + 1))
           ;;
       esac
-    done
+    done <<EOF
+$link_list
+EOF
   fi
   if [ "$escaped" -eq 0 ]; then
     pass "no symlinks escape the project"
+  else
+    # Stop here. Every later check reads these files, and several echo what they read.
+    info ""
+    info "Framework installation check failed with $failures issue(s)."
+    exit 1
   fi
 }
 
@@ -425,6 +426,7 @@ else
   pass "profile is recognised"
 fi
 
+check_no_escaping_symlinks
 check_file "PROJECT_CHARTER.md"
 check_file "AGENTS.md"
 check_file "docs/phase_plan.md"
@@ -477,7 +479,6 @@ check_living_doc_decay
 check_decision_log_rules
 check_no_leftover_scaffolds
 check_tool_leaks
-check_no_escaping_symlinks
 
 info ""
 if [ "$failures" -eq 0 ]; then

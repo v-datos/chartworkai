@@ -121,8 +121,14 @@ class TestJsonContract:
 
     def test_framework_repo_flag(self, cli, make):
         project = make(framework_repo=True)
-        payload = json.loads(cli("check", str(project), "--json").out)
+        payload = json.loads(cli("check", str(project), "--json", "--self-audit").out)
         assert payload["framework_repo"] is True
+
+    def test_framework_repo_flag_is_false_without_the_option(self, cli, make):
+        """The tree cannot claim it — only the caller can."""
+        project = make(framework_repo=True)
+        payload = json.loads(cli("check", str(project), "--json").out)
+        assert payload["framework_repo"] is False
 
     def test_summary_ok_is_false_when_failing(self, cli, project):
         remove(project, "TASKS.md")
@@ -196,7 +202,7 @@ class TestTextOutput:
 
     def test_framework_repo_scope_label(self, cli, make):
         project = make(framework_repo=True)
-        assert "(framework repo)" in cli("check", str(project)).out
+        assert "(framework repo)" in cli("check", str(project), "--self-audit").out
 
     def test_summary_and_verdict_lines(self, cli, project):
         out = cli("check", str(project)).out
@@ -445,14 +451,32 @@ PARITY_CASES = {
     "absolute_paths_in_core_docs": (_absolute_paths, 0),
     "slash_command_in_core_doc": (_slash_command, 1),
     "assistant_name_in_core_doc": (_assistant_name, 1),
-    "framework_repo_product_surface": (_framework_repo_product_surface, 0),
-    "framework_repo_assistant_names": (_framework_repo_assistant_names, 0),
+    # A tree carrying framework-shaped markers gets no exemption from either
+    # implementation: the relaxation is requested with --self-audit, not deduced.
+    "framework_repo_product_surface": (_framework_repo_product_surface, 1),
+    "framework_repo_assistant_names": (_framework_repo_assistant_names, 1),
 }
 
 
 class TestShellParity:
     def test_the_reference_implementation_is_present(self):
         assert SHELL_CHECKER.is_file()
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="The reference checker is a POSIX sh script; see the parity note above.",
+    )
+    def test_self_audit_agrees_between_implementations(self, make):
+        """The exemption must be granted identically by both, or the shell reference
+        and the packaged tool disagree about what compliance means."""
+        project = make(framework_repo=True)
+        _framework_repo_assistant_names(project)
+
+        assert run_shell_checker(project).code == 1
+        assert run_chartworkai_subprocess(project).code == 1
+
+        assert run_shell_checker(project, self_audit=True).code == 0
+        assert run_chartworkai_subprocess(project, "--self-audit").code == 0
 
     @pytest.mark.skipif(
         sys.platform == "win32",

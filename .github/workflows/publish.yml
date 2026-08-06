@@ -26,6 +26,11 @@ on:
     tags:
       - "chartworkai-v*"
 
+# Actions are pinned to commit SHAs, not tags. A tag is mutable: whoever controls
+# the action repository can repoint `@v4` at new code, and this workflow holds an
+# OIDC identity that PyPI trusts. The trailing comment records the human-readable
+# version each SHA corresponds to.
+
 permissions:
   contents: read
 
@@ -38,9 +43,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
@@ -54,11 +59,11 @@ jobs:
         run: ruff check src tests && ruff format --check src tests
 
       - name: Compliance — Python implementation
-        run: python -m chartworkai check . --strict
+        run: python -m chartworkai check . --strict --self-audit
 
       - name: Compliance — shell reference implementation
         if: runner.os != 'Windows'
-        run: sh scripts/check_framework_compliance.sh .
+        run: sh scripts/check_framework_compliance.sh . --self-audit
 
       - name: Shell scripts parse
         if: runner.os != 'Windows'
@@ -69,7 +74,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -91,9 +96,9 @@ jobs:
     needs: [gate]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
@@ -181,9 +186,14 @@ jobs:
               ("Google API key", re.compile(rb"\bAIza[0-9A-Za-z_-]{35}\b")),
               ("PyPI token", re.compile(rb"\bpypi-AgEIcHlwaS5vcmc[A-Za-z0-9_-]{10,}")),
               ("JSON Web Token", re.compile(rb"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}")),
+              # Deliberately generic: the provider patterns above only catch formats
+              # someone thought to enumerate. A bare `token = "..."` slipped through
+              # the earlier, narrower list.
               ("assigned secret", re.compile(
-                  rb"(?i)(?:api[_-]?key|secret[_-]?key|access[_-]?token|auth[_-]?token|"
-                  rb"client[_-]?secret|password)\s*[:=]\s*[\"']([^\"'\s]{16,})[\"']")),
+                  rb"(?i)\b[a-z0-9_.-]*"
+                  rb"(?:api[_-]?key|secret|token|passwd|password|credential|"
+                  rb"private[_-]?key|access[_-]?id|bearer|session[_-]?id|signature)"
+                  rb"[a-z0-9_.-]*\s*[:=]\s*[\"']([^\"'\s]{16,})[\"']")),
           ]
 
           # A personal address or home directory reaching PyPI cannot be recalled.
@@ -256,7 +266,7 @@ jobs:
           test -f /tmp/relproj/PROJECT_CHARTER.md
           echo "a user installing from PyPI can scaffold a project"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dist
           path: dist/
@@ -270,11 +280,11 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           repository-url: https://test.pypi.org/legacy/
 
@@ -287,8 +297,8 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2

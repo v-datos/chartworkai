@@ -26,9 +26,15 @@ from chartworkai.state import NAMESPACES, file_decision, file_handoff, read_stat
 #: Protocol revisions this server actually implements. The lifecycle spec requires
 #: responding with a version we support — echoing back whatever the client asked
 #: for would claim conformance to revisions we have never implemented.
-#: A single JSON-RPC message larger than this is refused unread. The transport is
-#: newline-delimited, so one oversized line would otherwise be buffered whole.
+#: A single JSON-RPC message larger than this is refused. The transport is
+#: newline-delimited, so an unbounded read would buffer one oversized line whole.
 MAX_MESSAGE_BYTES = 1 << 20
+
+#: Maximum nesting depth accepted in a message. Enforced explicitly rather than
+#: relying on the parser to raise: CPython raises RecursionError on deep input up to
+#: 3.13 but parses it on 3.14, so leaving the limit to the interpreter means the
+#: server's behaviour changes with the Python it happens to run on.
+MAX_MESSAGE_DEPTH = 64
 
 SUPPORTED_PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
 DEFAULT_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0]
@@ -307,27 +313,79 @@ def _dispatch(message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return _error(request_id, METHOD_NOT_FOUND, f"unknown method: {method}")
 
 
+def _too_deep(text: str, limit: int = MAX_MESSAGE_DEPTH) -> bool:
+    """True when *text* nests deeper than *limit*, judged before parsing.
+
+    Counting brackets outside string literals is enough to decide this and costs one
+    pass, where parsing costs a stack frame per level.
+    """
+    depth = 0
+    in_string = False
+    escaped = False
+    for char in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char in "[{":
+            depth += 1
+            if depth > limit:
+                return True
+        elif char in "]}":
+            depth -= 1
+    return False
+
+
 def serve(stdin: Optional[TextIO] = None, stdout: Optional[TextIO] = None) -> int:
     """Serve MCP over newline-delimited JSON on stdio until stdin closes."""
     source = stdin if stdin is not None else sys.stdin
     sink = stdout if stdout is not None else sys.stdout
 
-    for line in source:
+    def emit(payload: Dict[str, Any]) -> None:
+        sink.write(json.dumps(payload) + "\n")
+        sink.flush()
+
+    while True:
+        # Bound the read itself. Checking the length *after* reading an unbounded line
+        # is not a limit — the memory has already been spent by then.
+        line = source.readline(MAX_MESSAGE_BYTES + 1)
+        if not line:
+            break
+        if len(line) > MAX_MESSAGE_BYTES and not line.endswith("\n"):
+            # Discard the rest of the oversized line so the next read starts on a
+            # message boundary rather than mid-payload.
+            while True:
+                rest = source.readline(MAX_MESSAGE_BYTES + 1)
+                if not rest or rest.endswith("\n"):
+                    break
+            emit(_error(None, INVALID_REQUEST, f"message exceeds {MAX_MESSAGE_BYTES} bytes"))
+            continue
+
         line = line.strip()
         if not line:
             continue
-        if len(line) > MAX_MESSAGE_BYTES:
-            # Refuse before parsing: the cost of the attack is in json.loads.
-            response: Optional[Dict[str, Any]] = _error(
-                None, INVALID_REQUEST, f"message exceeds {MAX_MESSAGE_BYTES} bytes"
+        # len() counts characters; the stated limit is bytes, and one character can be
+        # four of them.
+        if len(line.encode("utf-8", "replace")) > MAX_MESSAGE_BYTES:
+            emit(_error(None, INVALID_REQUEST, f"message exceeds {MAX_MESSAGE_BYTES} bytes"))
+            continue
+        if _too_deep(line):
+            emit(
+                _error(
+                    None, INVALID_REQUEST, f"message nests deeper than {MAX_MESSAGE_DEPTH} levels"
+                )
             )
-            sink.write(json.dumps(response) + "\n")
-            sink.flush()
             continue
         try:
             message = json.loads(line)
         except json.JSONDecodeError:
-            response = _error(None, PARSE_ERROR, "invalid JSON")
+            response: Optional[Dict[str, Any]] = _error(None, PARSE_ERROR, "invalid JSON")
         except RecursionError:
             # CPython's JSON parser recurses per nesting level, so deeply nested input
             # raises rather than returning. Uncaught, one hostile message ended the
@@ -348,6 +406,5 @@ def serve(stdin: Optional[TextIO] = None, stdout: Optional[TextIO] = None) -> in
                 response = _error(None, INVALID_REQUEST, "message must be an object")
 
         if response is not None:
-            sink.write(json.dumps(response) + "\n")
-            sink.flush()
+            emit(response)
     return 0

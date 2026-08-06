@@ -285,13 +285,17 @@ class Result:
     err: str = ""
 
 
-def run_shell_checker(root: Path) -> Result:
-    """Run the reference shell implementation against *root*."""
-    proc = subprocess.run(
-        ["sh", str(SHELL_CHECKER), str(root)],
-        capture_output=True,
-        text=True,
-    )
+def run_shell_checker(root: Path, self_audit: bool = False) -> Result:
+    """Run the reference shell implementation against *root*.
+
+    *self_audit* is the caller's assertion that this tree is ChartworkAI's own
+    repository. It is no longer inferred from the tree's contents, because anything
+    inferable from a directory can be reproduced inside that directory.
+    """
+    command = ["sh", str(SHELL_CHECKER), str(root)]
+    if self_audit:
+        command.append("--self-audit")
+    proc = subprocess.run(command, capture_output=True, text=True)
     return Result(proc.returncode, proc.stdout, proc.stderr)
 
 
@@ -309,8 +313,8 @@ def run_chartworkai_subprocess(root: Path, *args: str) -> Result:
 # --- Report query helpers ----------------------------------------------------
 
 
-def report_for(root: Path) -> Report:
-    return run_checks(root)
+def report_for(root: Path, self_audit: bool = False) -> Report:
+    return run_checks(root, self_audit=self_audit)
 
 
 def findings(

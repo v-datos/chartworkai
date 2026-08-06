@@ -53,7 +53,7 @@ def _render_text(report: Report, strict: bool, quiet: bool) -> str:
 
 
 def _cmd_check(args: argparse.Namespace) -> int:
-    report = run_checks(args.path)
+    report = run_checks(args.path, self_audit=args.self_audit)
     if args.json:
         json.dump(report.to_dict(strict=args.strict), sys.stdout, indent=2)
         sys.stdout.write("\n")
@@ -194,6 +194,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     check.add_argument("--strict", action="store_true", help="Treat warnings as failures.")
     check.add_argument("--quiet", action="store_true", help="Only show failures and warnings.")
+    check.add_argument(
+        "--self-audit",
+        action="store_true",
+        help=(
+            "Audit ChartworkAI's own repository. Relaxes the placeholder, scaffold and "
+            "assistant-name checks, whose targets are this product's content. Do not "
+            "use it on a project built with ChartworkAI."
+        ),
+    )
     check.set_defaults(func=_cmd_check)
 
     state = subparsers.add_parser(

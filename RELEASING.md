@@ -17,8 +17,8 @@ Everything here must pass before you tag.
 ```bash
 python -m pytest                       # full suite
 ruff check src tests                   # lint
-chartworkai check . --strict           # the project governs itself
-sh scripts/check_framework_compliance.sh .   # shell checker agrees
+chartworkai check . --strict --self-audit   # the project governs itself
+sh scripts/check_framework_compliance.sh . --self-audit   # shell checker agrees
 ```
 
 Then confirm the two implementations still agree, because the scaffold is a published
