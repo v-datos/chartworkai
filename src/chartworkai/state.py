@@ -18,7 +18,7 @@ from chartworkai.checks import (
     _read,
     detect_profile,
 )
-from chartworkai.safety import create_exclusive
+from chartworkai.safety import create_exclusive, resolve_within
 
 NAMESPACES = ("DEC", "DQ", "SC", "MD")
 
@@ -83,7 +83,7 @@ def _tasks_by_section(root: Path) -> Dict[str, List[str]]:
     if not path.is_file():
         return sections
     current: Optional[str] = None
-    for line in _read(path).splitlines():
+    for line in _read(path, root).splitlines():
         if line.startswith("## "):
             current = line[3:].strip()
             sections.setdefault(current, [])
@@ -99,7 +99,7 @@ def _tasks_by_section(root: Path) -> Dict[str, List[str]]:
 def _recent_decisions(root: Path, limit: int = 5) -> List[Dict[str, Any]]:
     decisions: List[Dict[str, Any]] = []
     for path in sorted(_decision_files(root), reverse=True)[:limit]:
-        text = _read(path)
+        text = _read(path, root)
         title_match = _TITLE_RE.search(text)
         decisions.append(
             {
@@ -120,7 +120,7 @@ def _recent_handoffs(root: Path, limit: int = 5) -> List[Dict[str, Any]]:
     notes = sorted((p for p in directory.glob("*.md") if p.name != "README.md"), reverse=True)
     handoffs = []
     for path in notes[:limit]:
-        title_match = _TITLE_RE.search(_read(path))
+        title_match = _TITLE_RE.search(_read(path, root))
         handoffs.append(
             {
                 "file": f"docs/handoffs/{path.name}",
@@ -133,8 +133,8 @@ def _recent_handoffs(root: Path, limit: int = 5) -> List[Dict[str, Any]]:
 def read_state(project_root) -> Dict[str, Any]:
     """Summarise where the project stands, for an agent deciding what to do next."""
     root = Path(project_root).resolve()
-    charter = _read(root / "PROJECT_CHARTER.md")
-    plan = _read(root / "docs" / "phase_plan.md")
+    charter = _read(root / "PROJECT_CHARTER.md", root)
+    plan = _read(root / "docs" / "phase_plan.md", root)
 
     phase_match = CURRENT_PHASE_RE.search(plan)
     profile, is_data_profile = detect_profile(root)
@@ -182,6 +182,17 @@ def next_decision_id(root: Path, namespace: str) -> int:
 _MAX_ID_ATTEMPTS = 100
 
 
+def _number_is_taken(root: Path, namespace: str, number: int, ignore: Path) -> bool:
+    """Does a decision other than *ignore* already carry this namespace + number?"""
+    for path in _decision_files(root):
+        if path == ignore:
+            continue
+        match = _DECISION_ID_RE.match(path.name)
+        if match and match.group(1).upper() == namespace.upper() and int(match.group(2)) == number:
+            return True
+    return False
+
+
 def _decision_body(identifier, title, today, authority, context, ruling, rationale):
     """The decision record itself. Rebuilt per attempt: it embeds the ID."""
     body = [
@@ -225,28 +236,52 @@ def file_decision(
         raise ValueError(f"namespace must be one of {', '.join(NAMESPACES)}; got {namespace!r}")
 
     root = Path(project_root).resolve()
-    directory = root / "docs" / "decisions"
-    directory.mkdir(parents=True, exist_ok=True)
-
     today = _today()
 
     # Allocating the number and writing the file are separate reads of the directory,
-    # so two agents recording a decision at the same moment can pick the same one.
-    # O_EXCL makes the create fail instead of overwrite; the retry then re-reads the
-    # directory and sees the winner's file, so it advances to the next free number.
+    # so two agents recording a decision at the same moment both see the same number
+    # free. An exclusive create on the *final* filename does not fix this, because
+    # that name carries the title slug: two different titles produce two different
+    # filenames, both creates succeed, and both records claim the same ID. (Measured:
+    # 64 concurrent calls, 64 files, 6 distinct IDs.)
+    #
+    # So claim the number itself. The reservation name depends only on the namespace
+    # and number, which makes O_EXCL a genuine mutex over the ID. It is also a valid
+    # decision filename, so a concurrent reader scanning for the highest number sees
+    # the reservation immediately and moves past it — and if this process dies before
+    # the rename, what is left behind is the complete record under a duller name
+    # rather than a hole in the sequence.
+    # Re-derive the number on every attempt rather than walking upward from a stale
+    # one. The rename below frees the reservation name, so a blind +1 walk can land
+    # on a slot whose owner has already completed — handing out a duplicate ID. A
+    # reservation is itself a valid decision filename, so it is counted here and the
+    # re-read is authoritative.
     for _ in range(_MAX_ID_ATTEMPTS):
         number = next_decision_id(root, namespace)
         identifier = f"{namespace}-{number:03d}"
-        name = f"{today:%Y%m%d}_{namespace}{number:03d}_{_slug(title)}.md"
-        relative = f"docs/decisions/{name}"
         body = _decision_body(identifier, title, today, authority, context, ruling, rationale)
-        if create_exclusive(root, relative, "\n".join(body)) is not None:
-            break
+        reserved = f"docs/decisions/{today:%Y%m%d}_{namespace}{number:03d}_pending.md"
+        claimed = create_exclusive(root, reserved, "\n".join(body))
+        if claimed is None:
+            continue
+        # Holding the reservation is not by itself proof the number is ours: the
+        # rename below frees the reservation name, so a reader that derived this
+        # number before the previous owner claimed it can acquire the slot after
+        # that owner renames away. Acquiring strictly follows their rename, though,
+        # so their completed file is already on disk by the time we look.
+        if _number_is_taken(root, namespace, number, claimed):
+            claimed.unlink()
+            continue
+        break
     else:
         raise RuntimeError(
             f"could not allocate a free {namespace} decision id after "
             f"{_MAX_ID_ATTEMPTS} attempts in {root / 'docs' / 'decisions'}"
         )
+
+    name = f"{today:%Y%m%d}_{namespace}{number:03d}_{_slug(title)}.md"
+    relative = f"docs/decisions/{name}"
+    claimed.replace(resolve_within(root, relative))
 
     return {
         "id": identifier,
@@ -270,9 +305,6 @@ def file_handoff(
 ) -> Dict[str, Any]:
     """Write a dated handoff note — the currency passed between agents."""
     root = Path(project_root).resolve()
-    directory = root / "docs" / "handoffs"
-    directory.mkdir(parents=True, exist_ok=True)
-
     today = _today()
     stem = f"{today:%Y-%m-%d}_{_slug(agent)}"
 
@@ -312,6 +344,6 @@ def file_handoff(
     else:
         raise RuntimeError(
             f"could not allocate a free handoff name for {stem} after "
-            f"{_MAX_ID_ATTEMPTS} attempts in {directory}"
+            f"{_MAX_ID_ATTEMPTS} attempts in {root / 'docs' / 'handoffs'}"
         )
     return {"file": f"docs/handoffs/{name}", "agent": agent}

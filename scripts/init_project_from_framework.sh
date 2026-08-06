@@ -1,6 +1,31 @@
 #!/usr/bin/env sh
 set -eu
 
+# Refuse to write through a symlink at ANY component of a path under BASE.
+# A top-level check is not enough: a symlinked docs/decisions/ carries a write out
+# just as effectively, a *dangling* link makes the write create its external target,
+# and --force follows a file symlink instead of replacing it. Mirrors the Python
+# guard in src/chartworkai/safety.py.
+#
+# Usage: assert_inside BASE RELATIVE_PATH
+assert_inside() {
+  _prefix="$1"
+  _old_ifs="$IFS"
+  IFS='/'
+  # shellcheck disable=SC2086
+  set -- $2
+  IFS="$_old_ifs"
+  for _part in "$@"; do
+    [ -n "$_part" ] || continue
+    _prefix="$_prefix/$_part"
+    if [ -L "$_prefix" ]; then
+      printf 'error: refusing to write through a symlink: %s
+' "$_prefix" >&2
+      exit 1
+    fi
+  done
+}
+
 usage() {
   cat <<'USAGE'
 Usage:
@@ -102,12 +127,12 @@ FRAMEWORK_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 mkdir -p "$TARGET_DIR"
 cd "$TARGET_DIR"
 
-# A symlinked docs/ or scripts/ would carry every later write outside the project.
-for guard in docs scripts src tests data reports; do
-  if [ -L "$guard" ]; then
-    printf 'error: refusing to build the project tree through a symlink: %s\n' "$guard" >&2
-    exit 1
-  fi
+# Every directory this scaffold will build, checked component by component before
+# anything is created.
+for guard in docs docs/decisions docs/handoffs docs/domain docs/reproducibility \
+             src tests scripts docs/data data data/raw data/external data/interim \
+             data/processed reports reports/figures reports/tables reports/draft; do
+  assert_inside "." "$guard"
 done
 
 mkdir -p docs/decisions docs/handoffs docs/domain docs/reproducibility
@@ -126,6 +151,17 @@ for ref in templates agents prompts extensions; do
   rm -rf "./_framework_$ref"
   cp -R "$FRAMEWORK_ROOT/$ref" "./_framework_$ref"
 done
+# Every file this scaffold writes. Checked here so --force cannot follow a symlink.
+for guard in PROJECT_CHARTER.md AGENTS.md STATUS.md TASKS.md docs/phase_plan.md \
+             docs/style_guide.md docs/decisions/README.md docs/handoffs/README.md \
+             docs/domain/README.md docs/data/data_dictionary.md docs/data/lineage.md \
+             docs/data/watchlist.md scripts/check_framework_compliance.sh \
+             scripts/generate_phase_plan.sh \
+             "docs/decisions/${DATE_STAMP}_DEC001_charter_v1.md" \
+             "docs/handoffs/${DATE_ISO}_orchestrator.md"; do
+  assert_inside "." "$guard"
+done
+
 cp "$FRAMEWORK_ROOT/scripts/check_framework_compliance.sh" ./scripts/check_framework_compliance.sh
 cp "$FRAMEWORK_ROOT/scripts/generate_phase_plan.sh" ./scripts/generate_phase_plan.sh
 chmod +x ./scripts/check_framework_compliance.sh ./scripts/generate_phase_plan.sh

@@ -6,6 +6,31 @@
 
 set -eu
 
+# Refuse to write through a symlink at ANY component of a path under BASE.
+# A top-level check is not enough: a symlinked docs/decisions/ carries a write out
+# just as effectively, a *dangling* link makes the write create its external target,
+# and --force follows a file symlink instead of replacing it. Mirrors the Python
+# guard in src/chartworkai/safety.py.
+#
+# Usage: assert_inside BASE RELATIVE_PATH
+assert_inside() {
+  _prefix="$1"
+  _old_ifs="$IFS"
+  IFS='/'
+  # shellcheck disable=SC2086
+  set -- $2
+  IFS="$_old_ifs"
+  for _part in "$@"; do
+    [ -n "$_part" ] || continue
+    _prefix="$_prefix/$_part"
+    if [ -L "$_prefix" ]; then
+      printf 'error: refusing to write through a symlink: %s
+' "$_prefix" >&2
+      exit 1
+    fi
+  done
+}
+
 PROJECT_ROOT="${1:-.}"
 
 charter_file="$PROJECT_ROOT/PROJECT_CHARTER.md"
@@ -20,12 +45,9 @@ if [ ! -f "$charter_file" ] || [ ! -f "$status_file" ] || [ ! -f "$tasks_file" ]
   exit 1
 fi
 
-# Python refuses a symlinked phase plan; `mv` here would silently replace the link
-# instead. Refuse in both, so the two implementations behave identically.
-if [ -L "$phase_plan_file" ]; then
-  printf 'error: refusing to write through a symlink: %s\n' "$phase_plan_file" >&2
-  exit 1
-fi
+# Python refuses a symlinked phase plan, and a symlinked docs/ carries the write out
+# just as effectively. Check every component, so the two implementations agree.
+assert_inside "$PROJECT_ROOT" "docs/phase_plan.md"
 
 printf 'Generating phase plan for: %s\n' "$PROJECT_ROOT"
 
@@ -132,6 +154,13 @@ fi
 decisions_rows=""
 if [ -d "$decisions_dir" ]; then
   # Find and sort files by name (which starts with date) descending
+  # Split on newlines only. Default word-splitting broke on any decision whose
+  # filename contains a space: it was silently dropped from the log while the script
+  # still exited 0. A `while read` pipeline would fix the splitting but run the body
+  # in a subshell, losing decisions_rows entirely.
+  dec_old_ifs="$IFS"
+  IFS='
+'
   for dec_file in $(find "$decisions_dir" -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | sort -r); do
     filename="$(basename "$dec_file")"
     title="$(grep -m1 '^# ' "$dec_file" | sed 's/^# //' || true)"
@@ -147,6 +176,7 @@ if [ -d "$decisions_dir" ]; then
     decisions_rows="$decisions_rows
 | [$dec_id](decisions/$filename) | $dec_date | $dec_topic | $dec_status | $dec_auth |"
   done
+  IFS="$dec_old_ifs"
 fi
 
 if [ -z "$decisions_rows" ]; then

@@ -16,6 +16,7 @@ somewhere untrusted" is the normal case, not the exotic one.
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from collections import Counter
@@ -423,7 +424,7 @@ class TestExclusiveCreation:
             results = list(
                 pool.map(
                     lambda i: file_decision(
-                        root, "DEC", f"call {i}", "Orchestrator", "context", "ruling"
+                        root, f"distinct title {i}", "Orchestrator", "context", "ruling"
                     ),
                     range(workers),
                 )
@@ -469,5 +470,195 @@ class TestExclusiveCreation:
         shape the checker enforces."""
         root = tmp_path / "proj"
         scaffolded(root)
-        file_decision(root, "DEC", "Adopt a thing", "Orchestrator", "c", "r")
+        file_decision(root, "Adopt a thing", "Orchestrator", "c", "r")
         assert not has_fail(run_checks(root), "decision_naming")
+
+
+# --- Round-4 regressions: what the previous fixes did not actually cover ---------
+
+
+@posix_only
+class TestShellGuardsEveryComponent:
+    """The first fix checked only *top-level* directory symlinks. That left four
+    distinct escapes open in the shell tools, all of which reproduced."""
+
+    def test_nested_directory_symlink_is_refused(self, tmp_path: Path) -> None:
+        root = tmp_path / "proj"
+        (root / "docs").mkdir(parents=True)
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        (root / "docs" / "decisions").symlink_to(elsewhere)
+
+        proc = run_shell(SHELL_INIT, str(root), "X", "x", "software-app")
+        assert proc.returncode != 0
+        assert list(elsewhere.iterdir()) == []
+
+    def test_a_dangling_symlink_does_not_create_its_target(self, tmp_path: Path) -> None:
+        """`> link` follows a dangling link and creates the external file."""
+        root = tmp_path / "proj"
+        root.mkdir()
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        (root / "PROJECT_CHARTER.md").symlink_to(elsewhere / "charter.md")
+
+        proc = run_shell(SHELL_INIT, str(root), "X", "x", "software-app")
+        assert proc.returncode != 0
+        assert not (elsewhere / "charter.md").exists()
+
+    def test_force_does_not_write_through_a_file_symlink(self, tmp_path: Path) -> None:
+        root = tmp_path / "proj"
+        assert run_shell(SHELL_INIT, str(root), "X", "x", "software-app").returncode == 0
+        outside = tmp_path / "outside.md"
+        outside.write_text("PRECIOUS", encoding="utf-8")
+        (root / "STATUS.md").unlink()
+        (root / "STATUS.md").symlink_to(outside)
+
+        proc = run_shell(SHELL_INIT, str(root), "X", "x", "software-app", "--force")
+        assert proc.returncode != 0
+        assert outside.read_text(encoding="utf-8") == "PRECIOUS"
+
+    def test_generator_refuses_a_symlinked_docs_parent(self, tmp_path: Path) -> None:
+        """Guarding only the plan *file* misses a symlinked `docs/` above it."""
+        root = tmp_path / "proj"
+        scaffolded(root)
+        elsewhere = tmp_path / "elsewhere"
+        shutil.copytree(root / "docs", elsewhere)
+        (elsewhere / "phase_plan.md").write_text("PRECIOUS", encoding="utf-8")
+        shutil.rmtree(root / "docs")
+        (root / "docs").symlink_to(elsewhere)
+
+        proc = run_shell(SHELL_PLAN, str(root))
+        assert proc.returncode != 0
+        assert (elsewhere / "phase_plan.md").read_text(encoding="utf-8") == "PRECIOUS"
+
+
+@posix_only
+class TestGeneratorHandlesSpaces:
+    """Word-splitting `$(find ...)` dropped decisions and still exited 0 — a
+    governance log that silently loses entries is worse than one that fails."""
+
+    def test_a_decision_with_a_space_still_reaches_the_plan(self, tmp_path: Path) -> None:
+        root = tmp_path / "proj"
+        scaffolded(root)
+        decisions = root / "docs" / "decisions"
+        seed = next(p for p in decisions.glob("*DEC001*.md"))
+        spaced = decisions / "20260101_DEC002_has space.md"
+        spaced.write_text(
+            seed.read_text(encoding="utf-8").replace("DEC-001", "DEC-002"), encoding="utf-8"
+        )
+
+        proc = run_shell(SHELL_PLAN, str(root))
+        assert proc.returncode == 0
+        plan = (root / "docs" / "phase_plan.md").read_text(encoding="utf-8")
+        assert "DEC-001" in plan
+        assert "DEC-002" in plan
+
+
+class TestStateDoesNotDiscloseExternalFiles:
+    """`state` feeds an MCP tool result straight to an assistant. Finding 2: its
+    readers were never given the project root, so a planted link disclosed any file
+    the process could read."""
+
+    def _planted(self, tmp_path: Path) -> Path:
+        root = tmp_path / "proj"
+        scaffolded(root)
+        secret = tmp_path / "secret.md"
+        secret.write_text(
+            "# Project Charter - SECRET-EXTERNAL\n\nProfile: software-app\n"
+            "- Verify command: SECRET-VERIFY\n",
+            encoding="utf-8",
+        )
+        (root / "PROJECT_CHARTER.md").unlink()
+        (root / "PROJECT_CHARTER.md").symlink_to(secret)
+        return root
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need a Windows privilege")
+    def test_external_charter_is_not_disclosed(self, tmp_path: Path) -> None:
+        from chartworkai.state import read_state
+
+        payload = json.dumps(read_state(self._planted(tmp_path)))
+        assert "SECRET-EXTERNAL" not in payload
+        assert "SECRET-VERIFY" not in payload
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need a Windows privilege")
+    def test_external_decision_body_is_not_disclosed(self, tmp_path: Path) -> None:
+        from chartworkai.state import read_state
+
+        root = tmp_path / "proj"
+        scaffolded(root)
+        secret = tmp_path / "secret.md"
+        secret.write_text("# DEC-999 — SECRET-DECISION-TITLE\n", encoding="utf-8")
+        (root / "docs" / "decisions" / "20260101_DEC002_planted.md").symlink_to(secret)
+
+        assert "SECRET-DECISION-TITLE" not in json.dumps(read_state(root))
+
+
+class TestRejectionLeavesNoTrace:
+    """Finding 6: the writers created `docs/decisions/` before the guard ran, so a
+    refused call still built directories outside the project."""
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need a Windows privilege")
+    @pytest.mark.parametrize("call", ["decision", "handoff"])
+    def test_a_refused_write_creates_nothing_outside(self, tmp_path: Path, call: str) -> None:
+        root = tmp_path / "proj"
+        root.mkdir()
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        (root / "docs").symlink_to(elsewhere)
+
+        with pytest.raises(UnsafePathError):
+            if call == "decision":
+                file_decision(root, "Title", "Orchestrator", "context", "ruling")
+            else:
+                file_handoff(root, "QA", "produced", "location")
+
+        assert list(elsewhere.iterdir()) == []
+
+
+class TestDecisionIdsAreUniqueUnderContention:
+    """Finding 3. The previous guard made the *filename* exclusive, but the filename
+    carries the title slug — so distinct titles produced distinct filenames, both
+    creates succeeded, and both records claimed the same ID. Measured before the fix:
+    64 calls, 64 files, 6 distinct IDs."""
+
+    def test_distinct_titles_still_get_distinct_ids(self, tmp_path: Path) -> None:
+        root = tmp_path / "proj"
+        scaffolded(root)
+        workers = 64
+
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            results = list(
+                pool.map(
+                    lambda i: file_decision(
+                        root, f"distinct title {i}", "Orchestrator", "context", "ruling"
+                    ),
+                    range(workers),
+                )
+            )
+
+        ids = [entry["id"] for entry in results]
+        assert sorted(Counter(ids).values()) == [1] * workers, "duplicate decision IDs"
+        assert len({entry["file"] for entry in results}) == workers
+        for entry in results:
+            assert (root / entry["file"]).is_file()
+
+    def test_no_reservation_files_are_left_behind(self, tmp_path: Path) -> None:
+        root = tmp_path / "proj"
+        scaffolded(root)
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            list(
+                pool.map(
+                    lambda i: file_decision(root, f"title {i}", "Orchestrator", "c", "r"),
+                    range(16),
+                )
+            )
+        assert list((root / "docs" / "decisions").glob("*_pending.md")) == []
+
+    def test_every_namespace_allocates_independently(self, tmp_path: Path) -> None:
+        root = tmp_path / "proj"
+        scaffolded(root)
+        for namespace in ("DQ", "SC", "MD"):
+            entry = file_decision(
+                root, f"first {namespace}", "Orchestrator", "c", "r", namespace=namespace
+            )
+            assert entry["id"] == f"{namespace}-001"

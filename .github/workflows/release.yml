@@ -6,6 +6,10 @@ name: Release
 #
 #   TestPyPI: run this workflow manually from the Actions tab.
 #   PyPI:     push a tag matching chartworkai-v* (see DEC-008 on versioning).
+#
+# A tag is not a review. Everything CI enforces on `main` is re-run here against the
+# exact commit being published, because a tag can be pushed to any commit and the
+# artifact is what reaches users.
 
 on:
   workflow_dispatch:
@@ -17,8 +21,63 @@ permissions:
   contents: read
 
 jobs:
+  gate:
+    name: Full release gate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: python -m pip install --upgrade pip && python -m pip install -e . ruff pytest
+
+      - name: Tests
+        run: python -m pytest -q
+
+      - name: Lint
+        run: ruff check src tests && ruff format --check src tests
+
+      - name: Compliance — Python implementation
+        run: python -m chartworkai check . --strict
+
+      - name: Compliance — shell reference implementation
+        if: runner.os != 'Windows'
+        run: sh scripts/check_framework_compliance.sh .
+
+      - name: Shell scripts parse
+        if: runner.os != 'Windows'
+        run: for f in scripts/*.sh extensions/*/*.sh; do sh -n "$f" || exit 1; done
+
+  provenance:
+    name: The tag must point at reviewed history
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Refuse a tag that is not an ancestor-or-tip of main
+        run: |
+          set -eu
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_SHA is not contained in origin/main — refusing to publish"
+            echo "::error::A protected branch is the only reviewed history; tag a commit on main."
+            exit 1
+          fi
+          echo "tagged commit is contained in main"
+
   build:
     name: Build and verify the distributables
+    needs: [gate]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +104,100 @@ jobs:
           fi
           echo "tag and package agree on $built"
 
+      - name: Neither artifact may carry local clutter or secrets
+        run: |
+          set -eu
+          python - <<'PY'
+          import pathlib, re, sys, tarfile, zipfile
+
+          BANNED = re.compile(
+              r"(^|/)("
+              r"outputs|\.claude|\.venv|venv|\.idea|\.vscode|\.git|\.pytest_cache|"
+              r"\.ruff_cache|\.mypy_cache|__pycache__|node_modules|htmlcov"
+              r")/"
+              r"|(^|/)("
+              r"\.env|\.envrc|\.netrc|\.npmrc|\.pypirc|\.DS_Store|Thumbs\.db|"
+              r"\.coverage[^/]*|id_rsa|id_ed25519|.*\.pem|.*\.key|.*\.p12|.*\.pfx|"
+              r".*\.orig|.*\.rej|.*\.bak|.*~"
+              r")$",
+              re.IGNORECASE,
+          )
+
+          def names(path):
+              if path.suffix == ".whl":
+                  with zipfile.ZipFile(path) as archive:
+                      return archive.namelist()
+              with tarfile.open(path) as archive:
+                  return archive.getnames()
+
+          bad = []
+          for path in sorted(pathlib.Path("dist").iterdir()):
+              for name in names(path):
+                  if BANNED.search(name):
+                      bad.append(f"{path.name}: {name}")
+
+          if bad:
+              for entry in bad:
+                  print(f"::error::leaked into the distribution: {entry}")
+              sys.exit(1)
+          print("sdist and wheel are clean")
+          PY
+
+      - name: No personal identifiers in the artifacts
+        run: |
+          set -eu
+          python - <<'PY'
+          import pathlib, re, sys, tarfile, zipfile
+
+          # The package is published under a noreply identity; a personal address or
+          # a developer's home directory reaching PyPI cannot be recalled.
+          LEAK = re.compile(rb"[\w.+-]+@(?!users\.noreply\.github\.com)"
+                            rb"[\w-]+\.(?:com|net|org|io|me|dev|local|internal|lan|home)"
+                            rb"|/Users/[a-z][a-z0-9_-]*/"
+                            rb"|/home/(?!runner)[a-z][a-z0-9_-]*/", re.IGNORECASE)
+          # Documented placeholders, not anybody's real account. Keep this set tiny:
+          # every entry is a hole in the check.
+          ALLOWED = {b"noreply@anthropic.com", b"/home/user/", b"/Users/user/"}
+
+          def members(path):
+              if path.suffix == ".whl":
+                  with zipfile.ZipFile(path) as archive:
+                      for name in archive.namelist():
+                          yield name, archive.read(name)
+              else:
+                  with tarfile.open(path) as archive:
+                      for member in archive.getmembers():
+                          if member.isfile():
+                              handle = archive.extractfile(member)
+                              if handle:
+                                  yield member.name, handle.read()
+
+          bad = []
+          for path in sorted(pathlib.Path("dist").iterdir()):
+              for name, blob in members(path):
+                  for hit in set(LEAK.findall(blob)):
+                      if hit not in ALLOWED:
+                          bad.append(f"{path.name}: {name}: {hit.decode('utf-8', 'replace')}")
+
+          if bad:
+              for entry in sorted(set(bad)):
+                  print(f"::error::personal identifier in the distribution: {entry}")
+              sys.exit(1)
+          print("no personal identifiers in either artifact")
+          PY
+
+      - name: Install from the sdist and scaffold outside the repo
+        run: |
+          set -eu
+          python -m venv /tmp/relcheck
+          /tmp/relcheck/bin/pip install dist/*.tar.gz
+          cd /tmp
+          /tmp/relcheck/bin/chartworkai --version
+          /tmp/relcheck/bin/chartworkai init /tmp/relproj --name "Release Check" \
+            --profile software-app >/dev/null
+          test -f /tmp/relproj/PROJECT_CHARTER.md
+          echo "a user installing from PyPI can scaffold a project"
+
       - uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -53,7 +206,7 @@ jobs:
   testpypi:
     name: Publish to TestPyPI
     if: github.event_name == 'workflow_dispatch'
-    needs: build
+    needs: [build]
     runs-on: ubuntu-latest
     environment: testpypi
     permissions:
@@ -70,7 +223,7 @@ jobs:
   pypi:
     name: Publish to PyPI
     if: startsWith(github.ref, 'refs/tags/')
-    needs: build
+    needs: [build, provenance]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
