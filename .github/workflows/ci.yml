@@ -223,7 +223,7 @@ jobs:
 
           # Both must agree that the framework repo itself is compliant.
           sh scripts/check_framework_compliance.sh . --self-audit >/dev/null 2>&1 && shell_rc=0 || shell_rc=$?
-          chartworkai check . >/dev/null 2>&1 && py_rc=0 || py_rc=$?
+          chartworkai check . --self-audit >/dev/null 2>&1 && py_rc=0 || py_rc=$?
           echo "framework repo  shell=$shell_rc python=$py_rc"
           if [ "$shell_rc" != "$py_rc" ] || [ "$shell_rc" != "0" ]; then
             echo "::error::Parity broken on the framework repo (shell=$shell_rc python=$py_rc)"
