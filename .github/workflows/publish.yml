@@ -1,4 +1,4 @@
-name: Release
+name: Publish
 
 # Publishing uses PyPI Trusted Publishing (OIDC), so there is no API token stored
 # in this repository. PyPI verifies the workflow's identity — repo, workflow file,
@@ -6,6 +6,15 @@ name: Release
 #
 #   TestPyPI: run this workflow manually from the Actions tab.
 #   PyPI:     push a tag matching chartworkai-v* (see DEC-008 on versioning).
+#
+# THE FILENAME IS PART OF THE SECURITY BOUNDARY. Actions runs the workflow file as
+# it exists *at the tagged ref*, and a Trusted Publisher matches on the workflow
+# filename — so every historical commit that contains a publishing workflow under a
+# trusted name can publish, using whatever gates that old version happened to have.
+# Gates added later cannot protect earlier commits. This file is therefore named
+# `publish.yml`, a name that has never existed in this repository's history, and PyPI
+# must trust ONLY `publish.yml`. Never grant a Trusted Publisher the name
+# `release.yml`: commits carrying an ungated version of that file are still reachable.
 #
 # A tag is not a review. Everything CI enforces on `main` is re-run here against the
 # exact commit being published, because a tag can be pushed to any commit and the
@@ -56,7 +65,7 @@ jobs:
         run: for f in scripts/*.sh extensions/*/*.sh; do sh -n "$f" || exit 1; done
 
   provenance:
-    name: The tag must point at reviewed history
+    name: The tag must point at the reviewed tip of main
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
@@ -64,16 +73,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Refuse a tag that is not an ancestor-or-tip of main
+      - name: Refuse a tag that is not exactly the current main tip
         run: |
           set -eu
           git fetch --quiet origin main
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::$GITHUB_SHA is not contained in origin/main — refusing to publish"
-            echo "::error::A protected branch is the only reviewed history; tag a commit on main."
+          tip="$(git rev-parse origin/main)"
+          if [ "$GITHUB_SHA" != "$tip" ]; then
+            echo "::error::tagged commit $GITHUB_SHA is not the tip of main ($tip)"
+            echo "::error::Merely being an ancestor is not enough: an older commit carries"
+            echo "::error::older workflows and older gates. Tag the reviewed tip."
             exit 1
           fi
-          echo "tagged commit is contained in main"
+          echo "tagged commit is the current tip of main"
 
   build:
     name: Build and verify the distributables
@@ -143,21 +154,57 @@ jobs:
           print("sdist and wheel are clean")
           PY
 
-      - name: No personal identifiers in the artifacts
+      - name: No secrets or personal identifiers in the artifact contents
         run: |
           set -eu
           python - <<'PY'
-          import pathlib, re, sys, tarfile, zipfile
+          import math, pathlib, re, sys, tarfile, zipfile
+          from collections import Counter
 
-          # The package is published under a noreply identity; a personal address or
-          # a developer's home directory reaching PyPI cannot be recalled.
-          LEAK = re.compile(rb"[\w.+-]+@(?!users\.noreply\.github\.com)"
-                            rb"[\w-]+\.(?:com|net|org|io|me|dev|local|internal|lan|home)"
-                            rb"|/Users/[a-z][a-z0-9_-]*/"
-                            rb"|/home/(?!runner)[a-z][a-z0-9_-]*/", re.IGNORECASE)
-          # Documented placeholders, not anybody's real account. Keep this set tiny:
-          # every entry is a hole in the check.
+          # Workflow logs on a public repository are public. A finding must say enough
+          # to locate the problem and nothing more — printing the matched value would
+          # publish the very secret this step exists to stop.
+          def redact(value: bytes) -> str:
+              text = value.decode("utf-8", "replace")
+              if len(text) <= 8:
+                  return "*" * len(text)
+              return f"{text[:4]}...{text[-2:]} ({len(text)} chars)"
+
+          CREDENTIALS = [
+              ("private key block", re.compile(rb"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
+              ("AWS access key id", re.compile(rb"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b")),
+              ("GitHub token", re.compile(rb"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36}\b")),
+              ("GitHub fine-grained token", re.compile(rb"\bgithub_pat_[A-Za-z0-9_]{22,}")),
+              ("OpenAI-style key", re.compile(rb"\bsk-[A-Za-z0-9_-]{20,}")),
+              ("Anthropic key", re.compile(rb"\bsk-ant-[A-Za-z0-9_-]{20,}")),
+              ("Slack token", re.compile(rb"\bxox[baprs]-[A-Za-z0-9-]{10,}")),
+              ("Google API key", re.compile(rb"\bAIza[0-9A-Za-z_-]{35}\b")),
+              ("PyPI token", re.compile(rb"\bpypi-AgEIcHlwaS5vcmc[A-Za-z0-9_-]{10,}")),
+              ("JSON Web Token", re.compile(rb"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}")),
+              ("assigned secret", re.compile(
+                  rb"(?i)(?:api[_-]?key|secret[_-]?key|access[_-]?token|auth[_-]?token|"
+                  rb"client[_-]?secret|password)\s*[:=]\s*[\"']([^\"'\s]{16,})[\"']")),
+          ]
+
+          # A personal address or home directory reaching PyPI cannot be recalled.
+          IDENTIFIERS = re.compile(
+              rb"[\w.+-]+@(?!users\.noreply\.github\.com)"
+              rb"[\w-]+\.(?:com|net|org|io|me|dev|local|internal|lan|home)"
+              rb"|/Users/[a-z][a-z0-9_-]*/"
+              rb"|/home/(?!runner)[a-z][a-z0-9_-]*/",
+              re.IGNORECASE,
+          )
+          # Documented placeholders, not anybody's real account. Keep this tiny: every
+          # entry is a hole in the check.
           ALLOWED = {b"noreply@anthropic.com", b"/home/user/", b"/Users/user/"}
+
+          TEXTUAL = {".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml", ".cfg",
+                     ".ini", ".sh", ".env", ".pth", ""}
+
+          def shannon(value: bytes) -> float:
+              counts = Counter(value)
+              total = len(value)
+              return -sum((n / total) * math.log2(n / total) for n in counts.values())
 
           def members(path):
               if path.suffix == ".whl":
@@ -172,18 +219,29 @@ jobs:
                               if handle:
                                   yield member.name, handle.read()
 
-          bad = []
+          findings = []
           for path in sorted(pathlib.Path("dist").iterdir()):
               for name, blob in members(path):
-                  for hit in set(LEAK.findall(blob)):
+                  if pathlib.PurePosixPath(name).suffix.lower() not in TEXTUAL:
+                      continue
+                  for label, pattern in CREDENTIALS:
+                      for match in pattern.finditer(blob):
+                          value = match.group(match.lastindex or 0)
+                          # An assigned literal is only interesting if it looks random.
+                          # A readable English placeholder is documentation, not a key.
+                          if label == "assigned secret" and shannon(value) < 3.5:
+                              continue
+                          findings.append(f"{path.name}: {name}: {label} {redact(value)}")
+                  for hit in set(IDENTIFIERS.findall(blob)):
                       if hit not in ALLOWED:
-                          bad.append(f"{path.name}: {name}: {hit.decode('utf-8', 'replace')}")
+                          findings.append(
+                              f"{path.name}: {name}: personal identifier {redact(hit)}")
 
-          if bad:
-              for entry in sorted(set(bad)):
-                  print(f"::error::personal identifier in the distribution: {entry}")
+          if findings:
+              for entry in sorted(set(findings)):
+                  print(f"::error::{entry}")
               sys.exit(1)
-          print("no personal identifiers in either artifact")
+          print("no secrets or personal identifiers in either artifact")
           PY
 
       - name: Install from the sdist and scaffold outside the repo

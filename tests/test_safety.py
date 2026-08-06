@@ -662,3 +662,147 @@ class TestDecisionIdsAreUniqueUnderContention:
                 root, f"first {namespace}", "Orchestrator", "c", "r", namespace=namespace
             )
             assert entry["id"] == f"{namespace}-001"
+
+
+# --- Round-5 regressions: spoofing, hostile input, and quoting -------------------
+
+
+class TestFrameworkIdentityCannotBeSpoofed:
+    """Being recognised as the framework repo *relaxes* checks — most importantly it
+    stops reporting leftover `_framework_*` scaffold. An empty `framework.json` beside
+    an empty `templates/` used to be enough for a consumer project to silence its own
+    failures."""
+
+    def _leftover_failures(self, root: Path) -> int:
+        return len(
+            [
+                f
+                for f in run_checks(root).findings
+                if f.check == "leftover_scaffold" and f.status == "fail"
+            ]
+        )
+
+    def test_a_fresh_scaffold_reports_its_leftovers(self, tmp_path: Path) -> None:
+        root = tmp_path / "proj"
+        scaffolded(root)
+        assert self._leftover_failures(root) > 0
+
+    @pytest.mark.parametrize(
+        "manifest",
+        [
+            "{}",
+            '{"name": "chartworkai"}',
+            '{"name": "something-else", "version": "1", "profiles": {}, '
+            '"required_files": [], "required_directories": []}',
+            "not json at all",
+        ],
+        ids=["empty", "name-only", "wrong-name", "unparseable"],
+    )
+    def test_a_planted_manifest_does_not_silence_them(self, tmp_path: Path, manifest: str) -> None:
+        root = tmp_path / "proj"
+        scaffolded(root)
+        (root / "framework.json").write_text(manifest, encoding="utf-8")
+        (root / "templates").mkdir()
+        assert self._leftover_failures(root) > 0
+
+    def test_a_full_manifest_without_real_templates_does_not_qualify(self, tmp_path: Path) -> None:
+        root = tmp_path / "proj"
+        scaffolded(root)
+        (root / "framework.json").write_text(
+            json.dumps(
+                {
+                    "name": "chartworkai",
+                    "version": "1.0.0",
+                    "profiles": {},
+                    "required_files": [],
+                    "required_directories": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (root / "templates").mkdir()
+        assert self._leftover_failures(root) > 0
+
+    def test_the_real_repository_is_still_recognised(self) -> None:
+        from chartworkai.checks import detect_framework_repo
+
+        assert detect_framework_repo(REPO_ROOT)
+
+
+class TestMcpSurvivesHostileInput:
+    """Tool arguments arrive from an assistant acting on text it did not author, so
+    malformed input is reachable, not exotic. One bad message must not end the session
+    for every later request."""
+
+    def _serve(self, *lines: str) -> list:
+        import io
+
+        from chartworkai.mcp_server import serve
+
+        out = io.StringIO()
+        serve(stdin=io.StringIO("".join(line + "\n" for line in lines)), stdout=out)
+        return [json.loads(entry) for entry in out.getvalue().splitlines()]
+
+    HELLO = (
+        '{"jsonrpc":"2.0","id":1,"method":"initialize","params":'
+        '{"protocolVersion":"2024-11-05","capabilities":{},'
+        '"clientInfo":{"name":"t","version":"1"}}}'
+    )
+    LIST = '{"jsonrpc":"2.0","id":9,"method":"tools/list"}'
+
+    def test_deep_nesting_is_rejected_and_the_server_keeps_going(self) -> None:
+        deep = (
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":'
+            + "[" * 10000
+            + "]" * 10000
+            + "}"
+        )
+        replies = self._serve(self.HELLO, deep, self.LIST)
+
+        assert [r.get("id") for r in replies][0] == 1
+        assert "error" in replies[1]
+        assert replies[-1]["id"] == 9 and "result" in replies[-1]
+
+    def test_an_oversized_message_is_refused_unparsed(self) -> None:
+        from chartworkai.mcp_server import MAX_MESSAGE_BYTES
+
+        huge = (
+            '{"jsonrpc":"2.0","id":3,"method":"tools/list","params":{"x":"'
+            + "A" * (MAX_MESSAGE_BYTES + 10)
+            + '"}}'
+        )
+        replies = self._serve(self.HELLO, huge, self.LIST)
+
+        assert "error" in replies[1]
+        assert "exceeds" in replies[1]["error"]["message"]
+        assert replies[-1]["id"] == 9 and "result" in replies[-1]
+
+    def test_ordinary_traffic_is_unaffected(self) -> None:
+        replies = self._serve(self.HELLO, self.LIST)
+        assert len(replies) == 2
+        assert {tool["name"] for tool in replies[1]["result"]["tools"]} == {
+            "chartworkai_check",
+            "chartworkai_state",
+            "chartworkai_file_decision",
+            "chartworkai_file_handoff",
+        }
+
+
+@posix_only
+class TestShellCheckerHandlesSpacesInThePath:
+    """`find $targets` unquoted searched nonexistent paths, printed nothing, and the
+    check reported a false PASS — a compliance tool that silently passes is worse than
+    one that errors."""
+
+    def test_a_placeholder_is_found_under_a_path_containing_a_space(self, tmp_path: Path) -> None:
+        root = tmp_path / "has space"
+        scaffolded(root)
+        # Make it look like a framework checkout, which is the branch that split.
+        shutil.copy(REPO_ROOT / "framework.json", root / "framework.json")
+        (root / "templates").mkdir(exist_ok=True)
+        (root / "templates" / "AGENTS.template.md").write_text("x", encoding="utf-8")
+        (root / "STATUS.md").write_text("# Status\n\n{{UNRESOLVED}}\n", encoding="utf-8")
+
+        result = run_shell_checker(root)
+        assert "unresolved {{PLACEHOLDER}} tokens remain" in result.out
+        assert has_fail(run_checks(root), "placeholders")

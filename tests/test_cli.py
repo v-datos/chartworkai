@@ -387,8 +387,24 @@ def _assistant_name(project: Path) -> None:
 
 
 def _framework_repo_product_surface(project: Path) -> None:
-    write(project, "framework.json", '{\n  "name": "chartworkai"\n}\n')
-    write(project, "templates/PROJECT_CHARTER.md", "# Charter\n\nOwner: {{OWNER}}\n")
+    # Framework identity needs a manifest that names this framework and carries the
+    # keys it ships, plus a real *.template.md — a bare marker pair no longer counts.
+    write(
+        project,
+        "framework.json",
+        json.dumps(
+            {
+                "name": "chartworkai",
+                "version": "0.1.0",
+                "profiles": {},
+                "required_files": [],
+                "required_directories": [],
+            },
+            indent=2,
+        )
+        + "\n",
+    )
+    write(project, "templates/PROJECT_CHARTER.template.md", "# Charter\n\nOwner: {{OWNER}}\n")
     write(project, "agents/orchestrator.md", "Owner: {{OWNER}}\n")
 
 

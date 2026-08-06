@@ -16,6 +16,7 @@ DIVERGENCE-2  The ``STATUS.md`` date is parsed from any ``## YYYY-MM-DD`` headin
 
 from __future__ import annotations
 
+import json
 import re
 import time
 from pathlib import Path
@@ -201,13 +202,39 @@ def detect_profile(root: Path) -> Tuple[Optional[str], bool]:
     return profile, profile in DATA_PROFILES
 
 
+#: Keys a real ``framework.json`` carries. Being recognised as the framework repo
+#: *relaxes* checks, so the manifest has to prove itself rather than merely exist.
+FRAMEWORK_MANIFEST_KEYS = frozenset(
+    {"name", "version", "profiles", "required_files", "required_directories"}
+)
+
+
 def detect_framework_repo(root: Path) -> bool:
     """True when auditing ChartworkAI's own repo.
 
     Its product surface (templates, agent specs, prompts) legitimately contains
-    placeholder tokens. Consumer projects have no root ``framework.json``.
+    placeholder tokens, and its ``templates/`` directory is not leftover scaffold.
+
+    This is a *relaxation*, which makes it worth spoofing: an empty ``framework.json``
+    beside an empty ``templates/`` used to be enough for a consumer project to
+    suppress its own leftover-scaffold failures. So the manifest must actually parse,
+    declare itself as this framework, and carry the keys the product ships — and the
+    template directory must hold real templates.
     """
-    return (root / "framework.json").is_file() and (root / "templates").is_dir()
+    manifest = root / "framework.json"
+    if not manifest.is_file() or not (root / "templates").is_dir():
+        return False
+
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+
+    if not isinstance(data, dict) or not FRAMEWORK_MANIFEST_KEYS.issubset(data):
+        return False
+    if str(data.get("name", "")).strip().lower() not in {"chartworkai", "chartwork"}:
+        return False
+    return any((root / "templates").glob("*.template.md"))
 
 
 def _scaffold_dirs(root: Path) -> List[Path]:

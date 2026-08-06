@@ -12,6 +12,7 @@ pytest puts ``tests/`` on ``sys.path`` because the package has no ``__init__.py`
 from __future__ import annotations
 
 import itertools
+import json
 import os
 import shutil
 import subprocess
@@ -248,8 +249,26 @@ def make_project(
             write(root, rel, f"# {title}\n\n## Overview\n\nContract for {title}.\n")
 
     if framework_repo:
-        write(root, "framework.json", '{\n  "name": "chartworkai",\n  "version": "0.1.0"\n}\n')
-        write(root, "templates/PROJECT_CHARTER.md", "# Charter template\n")
+        # Framework identity relaxes checks, so detection demands a manifest that
+        # names this framework and carries the keys the product ships, plus a real
+        # *.template.md. A stub of two keys no longer qualifies — deliberately, so a
+        # consumer project cannot silence its own failures by planting one.
+        write(
+            root,
+            "framework.json",
+            json.dumps(
+                {
+                    "name": "chartworkai",
+                    "version": "0.1.0",
+                    "profiles": {},
+                    "required_files": [],
+                    "required_directories": [],
+                },
+                indent=2,
+            )
+            + "\n",
+        )
+        write(root, "templates/PROJECT_CHARTER.template.md", "# Charter template\n")
 
     return root
 

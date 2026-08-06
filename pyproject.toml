@@ -52,9 +52,13 @@ exclude = [
     "/outputs",
     "/.claude",
     "/.idea",
+    "/.venv",
     "/.venv-*",
     "/dist",
     "/.DS_Store",
+    # CI and publishing configuration describes how this repository is built, not how
+    # the package is used. Shipping it adds surface to every install for no benefit.
+    "/.github",
 ]
 
 [tool.hatch.build.targets.wheel]

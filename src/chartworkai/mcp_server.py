@@ -26,6 +26,10 @@ from chartworkai.state import NAMESPACES, file_decision, file_handoff, read_stat
 #: Protocol revisions this server actually implements. The lifecycle spec requires
 #: responding with a version we support — echoing back whatever the client asked
 #: for would claim conformance to revisions we have never implemented.
+#: A single JSON-RPC message larger than this is refused unread. The transport is
+#: newline-delimited, so one oversized line would otherwise be buffered whole.
+MAX_MESSAGE_BYTES = 1 << 20
+
 SUPPORTED_PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
 DEFAULT_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0]
 
@@ -312,14 +316,32 @@ def serve(stdin: Optional[TextIO] = None, stdout: Optional[TextIO] = None) -> in
         line = line.strip()
         if not line:
             continue
+        if len(line) > MAX_MESSAGE_BYTES:
+            # Refuse before parsing: the cost of the attack is in json.loads.
+            response: Optional[Dict[str, Any]] = _error(
+                None, INVALID_REQUEST, f"message exceeds {MAX_MESSAGE_BYTES} bytes"
+            )
+            sink.write(json.dumps(response) + "\n")
+            sink.flush()
+            continue
         try:
             message = json.loads(line)
         except json.JSONDecodeError:
-            response: Optional[Dict[str, Any]] = _error(None, PARSE_ERROR, "invalid JSON")
+            response = _error(None, PARSE_ERROR, "invalid JSON")
+        except RecursionError:
+            # CPython's JSON parser recurses per nesting level, so deeply nested input
+            # raises rather than returning. Uncaught, one hostile message ended the
+            # session for every later request — the arguments come from an assistant
+            # acting on text it did not author, so this is reachable input.
+            response = _error(None, INVALID_REQUEST, "message nesting is too deep")
         else:
             if isinstance(message, dict):
                 try:
                     response = handle_message(message)
+                except RecursionError:
+                    response = _error(
+                        message.get("id"), INVALID_REQUEST, "message nesting is too deep"
+                    )
                 except Exception as exc:  # never let one bad call kill the server
                     response = _error(message.get("id"), INTERNAL_ERROR, str(exc))
             else:

@@ -6,6 +6,7 @@ mutates exactly one thing, so a failure names the broken check directly.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -176,15 +177,39 @@ class TestProfileDetection:
 
 
 class TestFrameworkRepoDetection:
-    @pytest.mark.parametrize(
-        "has_json, has_templates, expected",
-        [(True, True, True), (True, False, False), (False, True, False), (False, False, False)],
+    #: A manifest that actually names this framework and carries the keys it ships.
+    VALID_MANIFEST = json.dumps(
+        {
+            "name": "chartworkai",
+            "version": "0.1.0",
+            "profiles": {},
+            "required_files": [],
+            "required_directories": [],
+        }
     )
-    def test_detection_needs_both_markers(self, project, has_json, has_templates, expected):
-        if has_json:
-            write(project, "framework.json", "{}\n")
-        if has_templates:
-            write(project, "templates/charter.md", "# Template\n")
+
+    @pytest.mark.parametrize(
+        "manifest, template, expected",
+        [
+            (VALID_MANIFEST, "templates/x.template.md", True),
+            (VALID_MANIFEST, None, False),
+            (None, "templates/x.template.md", False),
+            (None, None, False),
+            # Detection *relaxes* checks, so the markers have to prove themselves:
+            # a bare pair of markers used to be enough for any consumer project to
+            # silence its own leftover-scaffold and placeholder failures.
+            ("{}", "templates/x.template.md", False),
+            ('{"name": "chartworkai"}', "templates/x.template.md", False),
+            (VALID_MANIFEST, "templates/charter.md", False),
+            ("not json", "templates/x.template.md", False),
+            (VALID_MANIFEST.replace("chartworkai", "other"), "templates/x.template.md", False),
+        ],
+    )
+    def test_detection_requires_a_validated_manifest(self, project, manifest, template, expected):
+        if manifest is not None:
+            write(project, "framework.json", manifest + "\n")
+        if template is not None:
+            write(project, template, "# Template\n")
 
         assert detect_framework_repo(project) is expected
         assert report_for(project).framework_repo is expected

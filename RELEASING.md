@@ -5,8 +5,10 @@ How a ChartworkAI release is cut. Versioning follows
 Python package version independently, and package tags are prefixed
 `chartworkai-vX.Y.Z`.
 
-**Publishing is done by a human.** No token is stored in this repository and no workflow
-uploads on your behalf.
+**A human decides; the workflow uploads.** No API token is stored in this repository —
+publishing runs from `.github/workflows/publish.yml` over PyPI Trusted Publishing, and
+only ever in response to a deliberate act: a manual run for TestPyPI, or pushing a
+version tag for PyPI.
 
 ## 1. Pre-flight
 
@@ -78,7 +80,7 @@ git push origin chartworkai-v0.1.0
 
 ## 5. Publish
 
-Publishing runs from `.github/workflows/release.yml` using **Trusted Publishing**
+Publishing runs from `.github/workflows/publish.yml` using **Trusted Publishing**
 (OIDC). No API token is stored anywhere: PyPI verifies the workflow's identity —
 repository, workflow filename, and environment — and mints a credential good for that
 one upload. A token that does not exist cannot leak.
@@ -93,7 +95,7 @@ publisher*, register:
 | PyPI project name | `chartworkai` |
 | Owner | `v-datos` |
 | Repository name | `chartworkai` |
-| Workflow name | `release.yml` |
+| Workflow name | `publish.yml` |
 | Environment | `testpypi` on TestPyPI, `pypi` on PyPI |
 
 "Pending publisher" is the right form before the project exists; it converts to a
@@ -103,7 +105,7 @@ meaningful, and it is where you can add a manual approval gate.
 
 ### TestPyPI first
 
-Run the **Release** workflow manually from the Actions tab, then install what it
+Run the **Publish** workflow manually from the Actions tab, then install what it
 published before touching the real index:
 
 ```bash
@@ -118,10 +120,19 @@ Pushing the tag is the whole release.
 git push origin chartworkai-v0.1.0
 ```
 
-**Tag a commit that is already on `main`.** A tag is not a review: it can be pushed
-to any commit, including one that never passed CI or was never on a protected
-branch. The workflow refuses to publish unless the tagged commit is contained in
-`origin/main`, and refuses if the tag and the packaged version disagree.
+**Tag the current tip of `main`.** A tag is not a review: it can be pushed to any
+commit, including one that never passed CI. The workflow refuses to publish unless the
+tagged commit *is* `origin/main`'s tip, and refuses if the tag and the packaged version
+disagree.
+
+Being merely an *ancestor* of `main` is not enough, and the reason is worth stating:
+Actions runs the workflow file as it exists **at the tagged ref**, and a Trusted
+Publisher matches on the workflow **filename**. Tagging an older commit would therefore
+run that commit's version of the publishing workflow — with whatever gates existed
+then — while still satisfying PyPI. Gates added later cannot protect earlier commits.
+For the same reason PyPI must trust **only `publish.yml`**, a filename that has never
+existed anywhere in this repository's history. Never grant a publisher the name
+`release.yml`: commits carrying an ungated version of that file are still reachable.
 
 Before uploading anything the workflow re-runs, against the exact commit being
 published: the test suite, `ruff check` and `ruff format --check`, both compliance

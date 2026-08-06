@@ -29,10 +29,32 @@ fi
 
 # Framework-repo self-detection: the framework's OWN repo legitimately contains
 # {{...}} tokens across its product surface (templates/agents/prompts/examples and
-# the docs that teach placeholders). Consumer projects have no root framework.json.
+# the docs that teach placeholders).
+#
+# This RELAXES checks, which makes it worth spoofing: an empty framework.json beside
+# an empty templates/ let a consumer project silence its own leftover-scaffold and
+# placeholder failures. So the manifest must name this framework and carry the keys
+# the product ships, and templates/ must hold real templates. Mirrors
+# detect_framework_repo() in src/chartworkai/checks.py.
 FRAMEWORK_REPO=0
-if [ -f "$PROJECT_ROOT/framework.json" ] && [ -d "$PROJECT_ROOT/templates" ]; then
-  FRAMEWORK_REPO=1
+if [ -f "$PROJECT_ROOT/framework.json" ] && [ -d "$PROJECT_ROOT/templates" ] &&
+   ls "$PROJECT_ROOT"/templates/*.template.md >/dev/null 2>&1; then
+  _manifest="$(cat "$PROJECT_ROOT/framework.json" 2>/dev/null || true)"
+  _named=0
+  case "$_manifest" in
+    *'"name"'*'"chartworkai"'*|*'"name"'*'"chartwork"'*|\
+    *'"name"'*"'chartworkai'"*|*'"name"'*"'chartwork'"*) _named=1 ;;
+  esac
+  if [ "$_named" -eq 1 ]; then
+    _complete=1
+    for _key in '"version"' '"profiles"' '"required_files"' '"required_directories"'; do
+      case "$_manifest" in
+        *"$_key"*) ;;
+        *) _complete=0 ;;
+      esac
+    done
+    [ "$_complete" -eq 1 ] && FRAMEWORK_REPO=1
+  fi
 fi
 
 info() {
@@ -104,13 +126,20 @@ check_no_placeholders() {
   if [ "$FRAMEWORK_REPO" -eq 1 ]; then
     # Framework repo: scan only this project's own operating artifacts. Its product
     # surface (templates/agents/prompts/examples + placeholder-teaching docs) is excluded.
-    scan_targets=""
+    # Positional parameters, not a space-joined string: an unquoted `find $targets`
+    # splits on whitespace, so a project path containing a space made find search
+    # nonexistent paths, print nothing, and the check report a false PASS.
+    set --
     for t in PROJECT_CHARTER.md AGENTS.md STATUS.md TASKS.md; do
-      [ -f "$PROJECT_ROOT/$t" ] && scan_targets="$scan_targets $PROJECT_ROOT/$t"
+      [ -f "$PROJECT_ROOT/$t" ] && set -- "$@" "$PROJECT_ROOT/$t"
     done
-    [ -d "$PROJECT_ROOT/docs" ] && scan_targets="$scan_targets $PROJECT_ROOT/docs"
+    [ -d "$PROJECT_ROOT/docs" ] && set -- "$@" "$PROJECT_ROOT/docs"
+    if [ "$#" -eq 0 ]; then
+      pass "no unresolved {{PLACEHOLDER}} tokens in active docs/config"
+      return
+    fi
     matches="$(
-      find $scan_targets \
+      find "$@" \
         -type f \( -name '*.md' -o -name '*.json' -o -name '*.yaml' -o -name '*.yml' \) \
         -exec grep -Hn '{{[^}][^}]*}}' {} \; 2>/dev/null || true
     )"
