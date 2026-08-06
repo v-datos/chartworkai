@@ -112,12 +112,28 @@ pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://
 
 ### Then PyPI
 
-Pushing the tag is the whole release. The workflow refuses to publish if the tag and
-the packaged version disagree.
+Pushing the tag is the whole release.
 
 ```bash
 git push origin chartworkai-v0.1.0
 ```
+
+**Tag a commit that is already on `main`.** A tag is not a review: it can be pushed
+to any commit, including one that never passed CI or was never on a protected
+branch. The workflow refuses to publish unless the tagged commit is contained in
+`origin/main`, and refuses if the tag and the packaged version disagree.
+
+Before uploading anything the workflow re-runs, against the exact commit being
+published: the test suite, `ruff check` and `ruff format --check`, both compliance
+engines, and `sh -n` over every shell script — on Linux, macOS, and Windows. It then
+scans both the sdist and the wheel for local clutter, credential-shaped files, and
+personal identifiers (a home directory or a non-`noreply` email reaching PyPI cannot
+be recalled), and installs the sdist into a clean venv to scaffold a project from
+outside the repo.
+
+Never reuse a tag created in the pre-publication private repository. Those tags point
+into history that was deliberately left behind; create the release tag from a commit
+in this repository.
 
 ## 6. After the first release
 
