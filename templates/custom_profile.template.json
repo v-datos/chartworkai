@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "name": "legal-research",
+  "description": "Evidence-backed legal research with source and review controls.",
+  "extends": "generic",
+  "required_files": [
+    "docs/evidence/source_register.md"
+  ],
+  "required_directories": [
+    "docs/evidence"
+  ],
+  "scaffold_directories": [
+    "docs/evidence"
+  ],
+  "default_roles": [
+    "Orchestrator",
+    "Legal Researcher",
+    "Source Reviewer",
+    "QA / Reproducibility Engineer"
+  ],
+  "validation_commands": [
+    "make verify"
+  ]
+}

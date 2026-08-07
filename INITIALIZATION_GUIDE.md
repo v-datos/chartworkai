@@ -10,13 +10,21 @@ How to stand up a new project from this framework, step-by-step.
 
 ## Step 0 — Copy the framework scaffold
 
-Fast path:
+Fast path (project-agnostic generic core):
 
 ```bash
-scripts/init_project_from_framework.sh ~/projects/my_new_project "My New Project" my_new_project
+chartworkai init ~/projects/my_new_project --name "My New Project"
 ```
 
-This creates a minimal initialized project, copies reference templates/prompts/agents into `_framework_*` directories, seeds decisions/handoffs, installs the compliance checker, and runs it. After bootstrap, customize `PROJECT_CHARTER.md`, `AGENTS.md`, `docs/phase_plan.md`, `TASKS.md`, and `docs/data/`.
+Add `--profile software-app` to apply one of the six built-in presets. For a project-specific contract, copy `templates/custom_profile.template.json`, edit it, and pass `--profile-file /path/to/profile.json`. Custom profiles can add roles, required artifacts, directories, and validation commands while extending either `generic` or a preset.
+
+The standalone shell initializer supports `generic` and the six presets:
+
+```bash
+scripts/init_project_from_framework.sh ~/projects/my_new_project "My New Project" my_new_project generic
+```
+
+This creates a minimal initialized project, copies reference templates/prompts/agents into `_framework_*` directories, seeds decisions/handoffs, installs the compliance checker, and runs it. After bootstrap, customize `PROJECT_CHARTER.md`, `AGENTS.md`, `docs/phase_plan.md`, and `TASKS.md`; customize `docs/data/` only for data presets or custom profiles that extend one.
 
 Manual path:
 
@@ -32,9 +40,10 @@ cp -r /path/to/chartworkai/agents ./_framework_agents
 cp -r /path/to/chartworkai/prompts ./_framework_prompts
 cp -r /path/to/chartworkai/scripts ./scripts
 
-# Create the project structure:
-mkdir -p docs/{decisions,handoffs,data,domain,reproducibility}
-mkdir -p src tests data/{raw,interim,processed,external} reports/{figures,tables,draft}
+# Create the universal project structure:
+mkdir -p docs/{decisions,handoffs,domain,reproducibility}
+mkdir -p src tests scripts
+# Data presets add docs/data, data/{raw,interim,processed,external}, and reports/.
 touch docs/.gitkeep
 git init
 ```
@@ -90,16 +99,22 @@ Run the prompt in `prompts/02_agent_generation.md` to let the AI assistant draft
 
 ## Step 3 — Set up contracts
 
-From `_framework_templates/`:
+From `_framework_templates/`, copy the universal operating templates:
 
 ```bash
-cp data_contracts/data_dictionary.template.md docs/data/data_dictionary.md
-cp data_contracts/watchlist.template.md docs/data/watchlist.md
-cp data_contracts/lineage.template.md docs/data/lineage.md
 cp phase_plan.template.md docs/phase_plan.md
 cp style_guide.template.md docs/style_guide.md
 cp STATUS.template.md STATUS.md
 cp TASKS.template.md TASKS.md
+```
+
+For a data preset or a custom profile extending one, also copy the data contracts:
+
+```bash
+mkdir -p docs/data
+cp data_contracts/data_dictionary.template.md docs/data/data_dictionary.md
+cp data_contracts/watchlist.template.md docs/data/watchlist.md
+cp data_contracts/lineage.template.md docs/data/lineage.md
 ```
 
 Fill them in enough to be useful as soon as work begins. They are living documents — don't over-engineer v0.
@@ -185,15 +200,16 @@ A project is **not initialized** until all of these exist:
 - `docs/handoffs/README.md` or at least one dated handoff note
 - `docs/domain/README.md`
 
-Data profiles (`data-science`, `database`, and `competition-ml`) additionally require:
+Data presets (`data-science`, `database`, and `competition-ml`) and custom profiles extending them additionally require:
 
 - `docs/data/data_dictionary.md`
 - `docs/data/lineage.md`
 - `docs/data/watchlist.md`
 
-Non-data profiles do not require the data-contract triad. These rules come from the
+Generic and non-data profiles do not require the data-contract triad. These rules come from the
 packaged `framework.json`; the Python checker reads it directly and the standalone shell
-checker uses its generated projection in `scripts/framework_config.sh`.
+checker uses its generated projection in `scripts/framework_config.sh`. For a custom profile,
+use `chartworkai check`; the shell checker delegates to it when the package is installed.
 
 Verify this with:
 

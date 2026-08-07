@@ -172,6 +172,72 @@ class TestProfileDetection:
         write(project, "PROJECT_CHARTER.md", charter_text(profile="database"))
         assert detect_profile(project) == ("database", True)
 
+    def test_generic_is_a_known_non_data_profile(self, make):
+        project = make(profile="generic", with_data_triad=False)
+        report = report_for(project)
+        assert report.profile == "generic"
+        assert report.is_data_profile is False
+        assert "profile" not in {f.check for f in report.of_status(Status.FAIL)}
+
+    def test_a_valid_project_owned_profile_is_enforced(self, make):
+        project = make(profile="legal-research", with_data_triad=False)
+        write(
+            project,
+            "chartworkai.profile.json",
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "name": "legal-research",
+                    "description": "Evidence-backed legal research.",
+                    "extends": "generic",
+                    "required_files": ["docs/evidence/source_register.md"],
+                    "required_directories": ["docs/evidence"],
+                    "scaffold_directories": ["docs/evidence"],
+                    "default_roles": [
+                        "Orchestrator",
+                        "Legal Researcher",
+                        "QA / Reproducibility Engineer",
+                    ],
+                    "validation_commands": ["make verify"],
+                }
+            ),
+        )
+        (project / "docs/evidence").mkdir()
+        report = report_for(project)
+        assert report.is_data_profile is False
+        assert only(report, "profile").status == Status.PASS
+        assert only(report, "custom_profile").status == Status.PASS
+        assert only(report, "validation_commands").details == ["make verify"]
+        assert "docs/evidence/source_register.md" in paths_failed(report, "required_file")
+
+    def test_a_malformed_project_owned_profile_fails_closed(self, make):
+        project = make(profile="legal-research", with_data_triad=False)
+        write(project, "chartworkai.profile.json", "{}")
+        report = report_for(project)
+        profile = only(report, "profile")
+        assert profile.status == Status.FAIL
+        assert "missing fields" in profile.details[0]
+        assert report.is_data_profile is True
+        assert set(DATA_TRIAD) <= set(paths_failed(report, "required_file"))
+
+    def test_the_custom_file_name_must_match_the_charter(self, make):
+        project = make(profile="legal-research", with_data_triad=False)
+        value = {
+            "schema_version": 1,
+            "name": "policy-review",
+            "description": "Policy review.",
+            "extends": "generic",
+            "required_files": [],
+            "required_directories": [],
+            "scaffold_directories": [],
+            "default_roles": ["Orchestrator", "QA / Reproducibility Engineer"],
+            "validation_commands": ["make verify"],
+        }
+        write(project, "chartworkai.profile.json", json.dumps(value))
+        profile = only(report_for(project), "profile")
+        assert profile.status == Status.FAIL
+        assert "does not match" in profile.details[0]
+
 
 # --- 2. Framework-repo detection ---------------------------------------------
 

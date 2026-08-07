@@ -7,6 +7,21 @@ This file contains archived status reports for the AI Workflow Framework product
 
 ---
 
+## 2026-06-07 — Phase 2: T-007 external-tracker sync (first extension)
+
+**Prepared by:** Orchestrator
+
+**Shipped:**
+- Established `extensions/` as the home for optional, opt-in modules (with a catalog README).
+- `extensions/external-tracker-sync/` — README + `integration.template.md` + a tracker-agnostic `sync_tracker.sh`. Mirrors `TASKS.md` / `STATUS.md` to ClickUp/Linear/Notion/etc. Principles: the repo is the source of truth, the tracker is a one-way read-only mirror, and integration config lives in `docs/integrations/` — never pasted into `AGENTS.md` (the audit caught one project doing exactly that).
+- Listed in `framework.json` + `INITIALIZATION_GUIDE.md`.
+
+**Verified:** `sh -n` clean; a dry run mirrors STATUS + TASKS; the framework still passes its own check.
+
+**Next:** T-007b — the remaining three extensions (claims gate, experiment log, assistant primer).
+
+---
+
 ## 2026-06-07 — Phase 1 CLOSED (T-005 + agnosticism core complete)
 
 **Prepared by:** Orchestrator

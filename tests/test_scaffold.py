@@ -75,6 +75,7 @@ SEED_HANDOFF = f"{ISO}_orchestrator.md"
 DATA_PROFILE_NAMES = ("data-science", "database", "competition-ml")
 NON_DATA_PROFILE_NAMES = ("software-app", "investigation", "deployed-service")
 ALL_PROFILES = DATA_PROFILE_NAMES + NON_DATA_PROFILE_NAMES
+GENERIC_PROFILE = "generic"
 
 #: Documents every scaffold writes, whatever the profile.
 COMMON_FILES = (
@@ -127,11 +128,20 @@ def build(
     name: str = NAME,
     slug: Optional[str] = None,
     profile: str = "data-science",
+    profile_file: Optional[Path] = None,
     today: Optional[_dt.date] = FROZEN,
     force: bool = False,
 ) -> Dict[str, Any]:
     """Scaffold into *root* with the frozen date unless told otherwise."""
-    return init_project(root, name, project_slug=slug, profile=profile, today=today, force=force)
+    return init_project(
+        root,
+        name,
+        project_slug=slug,
+        profile=profile,
+        profile_file=profile_file,
+        today=today,
+        force=force,
+    )
 
 
 def tree(root: Path) -> Set[str]:
@@ -322,6 +332,23 @@ class TestSlugifyKnownDivergences:
 
 
 class TestDirectoryLayout:
+    def test_plain_init_uses_the_domain_agnostic_generic_core(self, tmp_path):
+        root = tmp_path / "generic"
+        summary = init_project(root, NAME, today=FROZEN)
+        assert summary["profile"] == "generic"
+        assert summary["profile_kind"] == "generic"
+        assert summary["is_data_profile"] is False
+        assert "Profile: generic" in (root / "PROJECT_CHARTER.md").read_text(encoding="utf-8")
+        assert not (root / "docs/data").exists()
+
+    def test_generic_agent_template_contains_no_data_science_layout(self, tmp_path):
+        root = tmp_path / "generic"
+        init_project(root, NAME, today=FROZEN)
+        agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+        assert "data-science" not in agents
+        assert "Data Engineer" not in agents
+        assert "Orchestrator, Domain Expert, Producer, Reviewer" in agents
+
     @pytest.mark.parametrize("profile", ALL_PROFILES)
     @pytest.mark.parametrize("relative", BASE_DIRS)
     def test_base_directories_exist_for_every_profile(self, tmp_path, profile, relative):
@@ -596,7 +623,10 @@ class TestSummary:
             "project",
             "slug",
             "profile",
+            "profile_kind",
+            "extends",
             "is_data_profile",
+            "validation_commands",
             "reference_dirs",
         }
 
@@ -610,6 +640,7 @@ class TestSummary:
         assert summary["project"] == NAME
         assert summary["profile"] == "database"
         assert summary["slug"] == SLUG
+        assert summary["profile_kind"] == "preset"
 
     @pytest.mark.parametrize("profile", ALL_PROFILES)
     def test_summary_flags_data_profiles(self, tmp_path, profile):
@@ -636,6 +667,87 @@ class TestSummary:
             build(tmp_path / "proj", profile="nope")
         for known in ("data-science", "software-app", "investigation"):
             assert known in str(excinfo.value)
+
+
+class TestCustomProfileScaffold:
+    @staticmethod
+    def write_profile(tmp_path, **overrides):
+        value = {
+            "schema_version": 1,
+            "name": "legal-research",
+            "description": "Evidence-backed legal research.",
+            "extends": "generic",
+            "required_files": ["docs/evidence/source_register.md"],
+            "required_directories": ["docs/evidence"],
+            "scaffold_directories": ["docs/evidence"],
+            "default_roles": [
+                "Orchestrator",
+                "Legal Researcher",
+                "Source Reviewer",
+                "QA / Reproducibility Engineer",
+            ],
+            "validation_commands": ["make verify-evidence", "make review-sources"],
+        }
+        value.update(overrides)
+        path = tmp_path / "custom-profile.json"
+        path.write_text(json.dumps(value), encoding="utf-8")
+        return path
+
+    def test_custom_contract_is_persisted_and_scaffolded(self, tmp_path):
+        root = tmp_path / "project"
+        summary = build(root, profile_file=self.write_profile(tmp_path))
+
+        assert summary["profile"] == "legal-research"
+        assert summary["profile_kind"] == "custom"
+        assert summary["extends"] == "generic"
+        assert summary["validation_commands"] == ["make verify-evidence", "make review-sources"]
+        assert (root / "chartworkai.profile.json").is_file()
+        assert (root / "docs/evidence").is_dir()
+
+        charter = (root / "PROJECT_CHARTER.md").read_text(encoding="utf-8")
+        agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+        assert "Profile: legal-research" in charter
+        assert "Verify command: make verify-evidence" in charter
+        assert "`make review-sources`" in charter
+        assert "Legal Researcher" in agents
+
+    def test_custom_required_artifacts_are_enforced(self, tmp_path):
+        root = tmp_path / "project"
+        build(root, profile_file=self.write_profile(tmp_path))
+        report = report_for(root)
+        required_failures = {
+            finding.path for finding in findings(report, "required_file", Status.FAIL)
+        }
+        assert "docs/evidence/source_register.md" in required_failures
+        assert findings(report, "custom_profile", Status.PASS)
+        assert findings(report, "validation_commands", Status.PASS)
+
+    def test_validation_commands_are_never_executed_implicitly(self, tmp_path):
+        marker = tmp_path / "must-not-exist"
+        root = tmp_path / "project"
+        path = self.write_profile(
+            tmp_path,
+            validation_commands=[f"touch {marker}"],
+            required_files=[],
+        )
+        build(root, profile_file=path)
+        report_for(root)
+        assert not marker.exists()
+
+    def test_extending_a_data_preset_keeps_its_contract(self, tmp_path):
+        root = tmp_path / "project"
+        path = self.write_profile(tmp_path, extends="data-science")
+        summary = build(root, profile_file=path)
+        assert summary["is_data_profile"] is True
+        for relative in DATA_TRIAD:
+            assert (root / relative).is_file()
+
+    def test_invalid_custom_profile_writes_nothing(self, tmp_path):
+        root = tmp_path / "project"
+        path = self.write_profile(tmp_path, required_files=["../escape"])
+        with pytest.raises(ValueError, match="project-relative POSIX paths"):
+            build(root, profile_file=path)
+        assert not root.exists()
 
 
 # --- Re-running --------------------------------------------------------------
@@ -908,12 +1020,12 @@ class TestShellParity:
         init_project(python_root, name, project_slug=slug, profile=profile, today=day)
         return shell_root, python_root
 
-    @pytest.mark.parametrize("profile", ["software-app", "data-science"])
+    @pytest.mark.parametrize("profile", ["generic", "software-app", "data-science"])
     def test_file_sets_are_identical(self, tmp_path, profile):
         shell_root, python_root = self._both(tmp_path, "Parity Demo", "parity_demo", profile)
         assert tree(python_root) == tree(shell_root)
 
-    @pytest.mark.parametrize("profile", ["software-app", "data-science"])
+    @pytest.mark.parametrize("profile", ["generic", "software-app", "data-science"])
     def test_every_file_is_byte_identical(self, tmp_path, profile):
         shell_root, python_root = self._both(tmp_path, "Parity Demo", "parity_demo", profile)
         differing = [
@@ -938,7 +1050,7 @@ class TestShellParity:
         for relative in sorted(files_under(shell_root)):
             assert (shell_root / relative).read_bytes() == (python_root / relative).read_bytes()
 
-    @pytest.mark.parametrize("profile", ["software-app", "data-science"])
+    @pytest.mark.parametrize("profile", ["generic", "software-app", "data-science"])
     def test_both_scaffolds_produce_the_same_compliance_verdict(self, tmp_path, profile):
         shell_root, python_root = self._both(tmp_path, "Parity Demo", "parity_demo", profile)
         shell_report = report_for(shell_root)

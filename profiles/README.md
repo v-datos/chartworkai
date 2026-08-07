@@ -6,11 +6,12 @@ A **profile** tailors the framework to what a project actually ships. Declare it
 **Profile:** software-app
 ```
 
-The profile determines: which artifacts are **required** (notably whether the `docs/data/` contract triad is required), the meaning of **"reproducibility"** (a single project-defined *verify* command), the **default role roster**, and directory emphasis. The compliance checker reads the `Profile:` line; if absent it defaults to `data-science` (backward-compatible with every project created before profiles existed). An unrecognised value is rejected rather than silently accepted, because a typo would otherwise hand the project the wrong governance contract.
+The profile determines: which artifacts are **required** (notably whether the `docs/data/` contract triad is required), the meaning of **"reproducibility"**, the **default role roster**, and directory emphasis. New scaffolds default to `generic`; projects created before profiles existed and still lacking a `Profile:` line retain the legacy `data-science` behavior. An unrecognised value requires a valid project-owned `chartworkai.profile.json`, otherwise it is rejected as a likely typo.
 
 <!-- BEGIN GENERATED PROFILE TABLE -->
 | Profile | Deliverable | Data contracts | "Reproducible" means |
 |---|---|---|---|
+| [`generic`](generic.md) | a project-defined deliverable | not required | the project-defined validation commands pass |
 | [`data-science`](data-science.md) | reproducible analysis / report | required | byte-identical rebuild from raw |
 | [`software-app`](software-app.md) | running / deployable software | not required | build + tests pass |
 | [`database`](database.md) | a curated dataset | required | deterministic rebuild + quality baselines |
@@ -19,6 +20,6 @@ The profile determines: which artifacts are **required** (notably whether the `d
 | [`deployed-service`](deployed-service.md) | a deployed service + infrastructure | not required | config + image digest + job URI trace a release |
 <!-- END GENERATED PROFILE TABLE -->
 
-The set is intentionally small and closed. New profiles are added by evidence, not speculation: each one above is drawn from real implementations, cited at the bottom of its spec. Five trace to two or more; `investigation` currently rests on one, which its spec says plainly.
+The six deliverable-specific presets are intentionally small and evidence-backed. They are accelerators, not the universe of supported projects. Use the `generic` core directly or initialize with `--profile-file` for a custom contract that extends `generic` or a preset. See [`../templates/custom_profile.template.json`](../templates/custom_profile.template.json).
 
 Some profiles pair naturally with an optional module from [`extensions/`](../extensions/) — `competition-ml` with `experiment-log`, `investigation` with `claims-gate`. Those specs say so.

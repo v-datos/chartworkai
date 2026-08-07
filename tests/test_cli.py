@@ -49,6 +49,82 @@ SUMMARY_KEYS = {"passed", "failed", "warnings", "ok"}
 FINDING_KEYS = {"check", "status", "message", "path", "details"}
 
 
+# --- Initialization -----------------------------------------------------------
+
+
+class TestInitCommand:
+    def test_omitting_profile_uses_the_generic_core(self, cli, tmp_path):
+        root = tmp_path / "generic"
+        result = cli("init", str(root), "--name", "Generic Project", "--json")
+        payload = json.loads(result.out)
+        assert result.code == 0
+        assert payload["profile"] == "generic"
+        assert payload["profile_kind"] == "generic"
+        assert payload["is_data_profile"] is False
+
+    @pytest.mark.parametrize(
+        "profile",
+        [
+            "data-science",
+            "software-app",
+            "database",
+            "competition-ml",
+            "investigation",
+            "deployed-service",
+        ],
+    )
+    def test_each_existing_preset_remains_accepted(self, cli, tmp_path, profile):
+        result = cli(
+            "init",
+            str(tmp_path / profile),
+            "--name",
+            "Preset Project",
+            "--profile",
+            profile,
+            "--json",
+        )
+        assert result.code == 0
+        assert json.loads(result.out)["profile"] == profile
+
+    def test_profile_file_initializes_a_custom_contract(self, cli, tmp_path):
+        profile_file = tmp_path / "profile.json"
+        profile_file.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "name": "policy-review",
+                    "description": "Policy review with evidence controls.",
+                    "extends": "generic",
+                    "required_files": [],
+                    "required_directories": ["docs/evidence"],
+                    "scaffold_directories": ["docs/evidence"],
+                    "default_roles": [
+                        "Orchestrator",
+                        "Policy Analyst",
+                        "QA / Reproducibility Engineer",
+                    ],
+                    "validation_commands": ["make verify-policy"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        root = tmp_path / "custom"
+        result = cli(
+            "init",
+            str(root),
+            "--name",
+            "Policy Review",
+            "--profile-file",
+            str(profile_file),
+            "--json",
+        )
+        payload = json.loads(result.out)
+        assert result.code == 0
+        assert payload["profile"] == "policy-review"
+        assert payload["profile_kind"] == "custom"
+        assert (root / "chartworkai.profile.json").is_file()
+
+
 # --- JSON contract ------------------------------------------------------------
 
 
@@ -198,7 +274,7 @@ class TestTextOutput:
 
     def test_default_profile_label_when_absent(self, cli, make):
         project = make(profile=None)
-        assert "Profile: data-science (default)" in cli("check", str(project)).out
+        assert "Profile: data-science (legacy default)" in cli("check", str(project)).out
 
     def test_framework_repo_scope_label(self, cli, make):
         project = make(framework_repo=True)

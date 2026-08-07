@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Profiles are now optional presets (T-025 / DEC-012).** New projects default to a
+  domain-neutral `generic` core. All six existing profile flags remain supported, while
+  `chartworkai init --profile-file FILE` accepts a validated project-owned contract for
+  custom roles, required artifacts, directories, and validation commands. Projects with
+  no `Profile:` line retain the legacy `data-science` checks. The framework contract is
+  now 1.2.0; the Python package version remains independent.
 - **`framework.json` is now authoritative (T-016 / DEC-011).** Python loads profile,
   required-artifact, and scaffold-layout rules directly from the packaged manifest.
   POSIX shell and profile documentation use generated projections, with drift rejected

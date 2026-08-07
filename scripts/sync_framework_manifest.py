@@ -34,7 +34,9 @@ def _emit_profile_function(name: str, profiles: Dict, key: str) -> List[str]:
 
 
 def render_shell(manifest: Dict) -> str:
-    profiles = manifest["profiles"]
+    presets = manifest["profiles"]
+    generic = manifest["generic_profile"]
+    profiles = {generic["name"]: generic, **presets}
     known = "|".join(profiles)
     data = "|".join(
         name for name, settings in profiles.items() if settings["requires_data_contracts"]
@@ -51,8 +53,11 @@ def render_shell(manifest: Dict) -> str:
         "",
         f"CW_FRAMEWORK_VERSION='{manifest['version']}'",
         f"CW_DEFAULT_PROFILE='{manifest['default_profile']}'",
+        f"CW_LEGACY_PROFILE='{manifest['legacy_profile']}'",
         f"CW_STRICT_PROFILE='{strict_profile}'",
         f"CW_KNOWN_PROFILES='{' '.join(profiles)}'",
+        f"CW_PRESET_PROFILES='{' '.join(presets)}'",
+        f"CW_CUSTOM_PROFILE_FILE='{manifest['custom_profiles']['project_file']}'",
         "",
         "cw_profile_known() {",
         '  case "$1" in',
@@ -86,6 +91,7 @@ def render_shell(manifest: Dict) -> str:
     lines += _emit_profile_function(
         "cw_profile_scaffold_directories", profiles, "scaffold_directories"
     )
+    lines += _emit_profile_function("cw_profile_default_roles", profiles, "default_roles")
     for prefix, rule in (("DECISION", rules["seed_decision"]), ("HANDOFF", rules["handoff"])):
         lines.extend(
             [
@@ -110,7 +116,11 @@ def render_profile_table(manifest: Dict, prefix: str) -> str:
         "| Profile | Deliverable | Data contracts | \"Reproducible\" means |",
         "|---|---|---|---|",
     ]
-    for name, profile in manifest["profiles"].items():
+    profiles = {
+        manifest["generic_profile"]["name"]: manifest["generic_profile"],
+        **manifest["profiles"],
+    }
+    for name, profile in profiles.items():
         contracts = "required" if profile["requires_data_contracts"] else "not required"
         lines.append(
             f"| [`{name}`]({prefix}{name}.md) | {profile['deliverable']} | "

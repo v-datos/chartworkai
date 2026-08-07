@@ -22,7 +22,8 @@ from chartworkai.checks import DATA_PROFILES, KNOWN_PROFILES
 
 MANIFEST_PATH = REPO_ROOT / "framework.json"
 MANIFEST = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-PROFILES = MANIFEST["profiles"]
+PRESETS = MANIFEST["profiles"]
+PROFILES = {MANIFEST["generic_profile"]["name"]: MANIFEST["generic_profile"], **PRESETS}
 
 #: Inventory keys whose values are paths that must exist in the repository.
 INVENTORY_KEYS = ("templates", "prompts", "scripts", "extensions")
@@ -35,13 +36,26 @@ needs_sh = pytest.mark.skipif(
 class TestProfilesDriveTheRuntime:
     """Runtime profile choices are objects loaded from the packaged manifest."""
 
-    def test_the_manifest_lists_exactly_the_known_profiles(self):
+    def test_generic_plus_the_six_presets_are_exactly_the_known_profiles(self):
         assert set(PROFILES) == set(KNOWN_PROFILES)
         assert KNOWN_PROFILES is manifest.KNOWN_PROFILES
 
-    def test_the_default_profile_is_one_of_them(self):
-        assert MANIFEST["default_profile"] in PROFILES
+    def test_generic_is_the_default_and_the_legacy_default_remains_data_science(self):
+        assert MANIFEST["default_profile"] == MANIFEST["generic_profile"]["name"]
+        assert MANIFEST["legacy_profile"] == "data-science"
         assert manifest.DEFAULT_PROFILE == MANIFEST["default_profile"]
+        assert manifest.LEGACY_PROFILE == MANIFEST["legacy_profile"]
+
+    def test_the_existing_six_profiles_remain_presets(self):
+        assert set(PRESETS) == {
+            "data-science",
+            "software-app",
+            "database",
+            "competition-ml",
+            "investigation",
+            "deployed-service",
+        }
+        assert set(manifest.PRESET_PROFILES) == set(PRESETS)
 
     @pytest.mark.parametrize("name", sorted(PROFILES))
     def test_the_data_contract_flag_matches_the_checker(self, name):
@@ -52,6 +66,7 @@ class TestProfilesDriveTheRuntime:
         assert manifest.REQUIRED_FILES == tuple(MANIFEST["required_files"])
         assert manifest.REQUIRED_DIRECTORIES == tuple(MANIFEST["required_directories"])
         assert manifest.MANAGED_FILES == tuple(MANIFEST["managed_files"])
+        assert manifest.CUSTOM_PROFILE_FILE == MANIFEST["custom_profiles"]["project_file"]
 
     def test_the_packaged_asset_root_contains_the_authority(self):
         assert (asset_root() / "framework.json").read_bytes() == MANIFEST_PATH.read_bytes()
@@ -176,6 +191,11 @@ class TestGeneratedProjections:
         assert self.shell_lines("cw_required_files") == MANIFEST["required_files"]
         assert self.shell_lines("cw_required_directories") == MANIFEST["required_directories"]
 
+    @needs_sh
+    def test_shell_defaults_match_the_manifest(self):
+        assert self.shell_lines('printf "%s\\n" "$CW_DEFAULT_PROFILE"') == ["generic"]
+        assert self.shell_lines('printf "%s\\n" "$CW_LEGACY_PROFILE"') == ["data-science"]
+
     @pytest.mark.parametrize("name", sorted(PROFILES))
     @needs_sh
     def test_shell_profile_rules_match_the_manifest(self, name):
@@ -190,6 +210,9 @@ class TestGeneratedProjections:
         assert (
             self.shell_lines(f"cw_profile_scaffold_directories {name}")
             == PROFILES[name]["scaffold_directories"]
+        )
+        assert (
+            self.shell_lines(f"cw_profile_default_roles {name}") == PROFILES[name]["default_roles"]
         )
 
 

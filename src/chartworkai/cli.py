@@ -1,6 +1,6 @@
 """ChartworkAI command-line interface.
 
-    chartworkai init TARGET --name NAME [--slug SLUG] [--profile PROFILE]
+    chartworkai init TARGET --name NAME [--slug SLUG] [--profile PROFILE | --profile-file FILE]
     chartworkai check [PATH] [--json] [--strict] [--quiet]
     chartworkai plan [PATH]
     chartworkai state [PATH]
@@ -20,7 +20,7 @@ from typing import List, Optional
 
 from chartworkai import __version__
 from chartworkai.checks import run_checks
-from chartworkai.manifest import DEFAULT_PROFILE, KNOWN_PROFILES
+from chartworkai.manifest import DEFAULT_PROFILE, KNOWN_PROFILES, LEGACY_PROFILE, PRESET_PROFILES
 from chartworkai.models import Report, Status
 from chartworkai.safety import UnsafePathError
 
@@ -30,7 +30,7 @@ _GLYPH = {Status.PASS: "PASS", Status.FAIL: "FAIL", Status.WARN: "WARN"}
 def _render_text(report: Report, strict: bool, quiet: bool) -> str:
     lines: List[str] = []
     lines.append(f"ChartworkAI {__version__} — checking: {report.project_root}")
-    profile = report.profile or f"{DEFAULT_PROFILE} (default)"
+    profile = report.profile or f"{LEGACY_PROFILE} (legacy default)"
     scope = "framework repo" if report.framework_repo else "project"
     lines.append(f"Profile: {profile}  ({scope})")
     lines.append("")
@@ -71,7 +71,8 @@ def _cmd_init(args: argparse.Namespace) -> int:
             args.target,
             args.name,
             project_slug=args.slug,
-            profile=args.profile,
+            profile=args.profile or DEFAULT_PROFILE,
+            profile_file=args.profile_file,
             force=args.force,
         )
     except (ValueError, NotADirectoryError, UnsafePathError, OSError) as exc:
@@ -159,14 +160,25 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("target", help="Directory to create the project in.")
     init.add_argument("--name", required=True, help="Human-readable project name.")
     init.add_argument("--slug", default=None, help="Machine-friendly slug (derived if omitted).")
-    init.add_argument(
+    profile_group = init.add_mutually_exclusive_group()
+    profile_group.add_argument(
         "--profile",
-        default=DEFAULT_PROFILE,
+        default=None,
         choices=list(KNOWN_PROFILES),
         metavar="PROFILE",
         help=(
-            "Deliverable type, one of: " + ", ".join(KNOWN_PROFILES) + ". "
-            f"Non-data profiles skip their profile-specific artifacts. (default: {DEFAULT_PROFILE})"
+            "Optional built-in preset: "
+            + ", ".join(PRESET_PROFILES)
+            + f". Omit for the project-agnostic {DEFAULT_PROFILE!r} core."
+        ),
+    )
+    profile_group.add_argument(
+        "--profile-file",
+        default=None,
+        metavar="FILE",
+        help=(
+            "JSON custom profile extending generic or a built-in preset. The validated "
+            "contract is copied to chartworkai.profile.json in the project."
         ),
     )
     init.add_argument(

@@ -1,6 +1,6 @@
 # TASKS — ChartworkAI
 
-Last updated: 2026-08-06
+Last updated: 2026-08-07
 
 ## In Progress
 
@@ -24,6 +24,13 @@ Last updated: 2026-08-06
 
 ## Done
 
+- [x] **T-025 — Make presets optional and support custom profiles** — 2026-08-07 —
+  Findings: framework contract 1.2.0 makes the domain-neutral `generic` core the
+  initialization default while preserving the six presets and the legacy no-profile
+  `data-science` behavior. Validated `--profile-file` contracts can extend generic or a
+  preset with roles, artifacts, directories, and non-executed validation commands. Full
+  tests, generic shell/Python parity, both self-audits, wheel/sdist checks, clean-wheel
+  generic/custom scaffolds, shell delegation, and artifact privacy checks pass.
 - [x] **T-016 — Make `framework.json` authoritative** — 2026-08-06 — Findings:
   DEC-011 makes framework contract 1.1.0 the source of truth for profiles, required
   artifacts, managed files, and scaffold layout. Python loads the packaged manifest
