@@ -3,9 +3,9 @@
 > ⚠️ **STOP — READ BEFORE EDITING.**
 > 1. Read this entire file first. 2. Edit sections **in place** — never append a second copy of a section. 3. Hard cap: **200 lines**. 4. If a section is duplicated or this file exceeds the cap, prune to a single canonical form before adding anything.
 
-**Last updated:** 2026-08-06
+**Last updated:** 2026-08-07
 **Current phase:** Phase 4 — ChartworkAI package & launch
-**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 ships the product as software: `chartworkai` 0.1.0 is live on PyPI, and framework contract 1.1.0 now drives Python, generated POSIX shell rules, and profile tables from `framework.json`. The CLI covers `init`, `check`, `plan`, `state`, and `mcp`, with packaged assets and shell/Python scaffold parity enforced in CI. Next dispatch: build the CrewAI adapter (T-018).
+**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 ships the product as software: `chartworkai` 0.1.0 is live on PyPI, and framework contract 1.2.0 now makes the generic core the initialization default while retaining six optional presets and adding bounded project-owned profiles. T-025 is complete; next dispatch is the CrewAI adapter (T-018).
 
 ## Active agents
 
@@ -25,6 +25,7 @@
 - [x] Product model and go-to-market strategy defined (DEC-004) (T-012).
 - [x] ChartworkAI 0.1.0 published through staged OIDC after TestPyPI proof (T-020).
 - [x] `framework.json` drives runtime, shell projections, and profile tables (T-016).
+- [x] Generic initialization and project-owned custom profiles pass all gates (T-025).
 
 ## Dispatch queue (next up)
 
@@ -40,6 +41,7 @@
 
 | ID | Date | Topic | Status | Authority |
 |---|---|---|---|---|
+| [DEC-012](decisions/20260806_DEC012_generic_and_custom_profiles.md) | 2026-08-06 | Make presets optional and support custom profiles | Decided | Framework Architect / Dogfood & Compliance QA |
 | [DEC-011](decisions/20260806_DEC011_authoritative_manifest.md) | 2026-08-06 | Make framework.json the executable contract | Decided | Framework Architect / Dogfood & Compliance QA |
 | [DEC-010](decisions/20260806_DEC010_trusted_publishing.md) | 2026-08-06 | Publish through staged OIDC workflows | Decided | Orchestrator / Dogfood & Compliance QA |
 | [DEC-009](decisions/20260805_DEC009_release_audit_remediation.md) | 2026-08-05 | Three pre-release audits gate the first publication | Decided | Orchestrator / Dogfood & Compliance QA |

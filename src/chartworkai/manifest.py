@@ -28,6 +28,9 @@ def load_manifest() -> Dict[str, Any]:
         "name",
         "version",
         "default_profile",
+        "legacy_profile",
+        "generic_profile",
+        "custom_profiles",
         "profiles",
         "required_files",
         "required_directories",
@@ -43,11 +46,26 @@ def load_manifest() -> Dict[str, Any]:
     if missing:
         raise RuntimeError(f"framework manifest is missing required keys: {', '.join(missing)}")
 
-    profiles = manifest["profiles"]
-    if not isinstance(profiles, dict) or not profiles:
+    presets = manifest["profiles"]
+    if not isinstance(presets, dict) or not presets:
         raise RuntimeError("framework manifest must define at least one profile")
+    generic = manifest["generic_profile"]
+    if not isinstance(generic, dict) or not generic.get("name"):
+        raise RuntimeError("framework manifest generic_profile must be a named object")
+    if generic["name"] in presets:
+        raise RuntimeError("framework manifest generic_profile name conflicts with a preset")
+    profiles = {generic["name"]: generic, **presets}
     if manifest["default_profile"] not in profiles:
         raise RuntimeError("framework manifest default_profile is not a declared profile")
+    if manifest["legacy_profile"] not in profiles:
+        raise RuntimeError("framework manifest legacy_profile is not a declared profile")
+
+    custom = manifest["custom_profiles"]
+    custom_keys = {"schema_version", "project_file", "name_pattern", "required_fields"}
+    if not isinstance(custom, dict) or not custom_keys <= custom.keys():
+        raise RuntimeError("framework manifest custom_profiles contract is incomplete")
+    if not isinstance(custom["required_fields"], list) or not custom["required_fields"]:
+        raise RuntimeError("framework manifest custom_profiles.required_fields must be a list")
 
     for name, profile in profiles.items():
         if not isinstance(profile, dict):
@@ -65,7 +83,13 @@ def load_manifest() -> Dict[str, Any]:
 
 MANIFEST = load_manifest()
 DEFAULT_PROFILE: str = MANIFEST["default_profile"]
-PROFILES: Mapping[str, Mapping[str, Any]] = MANIFEST["profiles"]
+LEGACY_PROFILE: str = MANIFEST["legacy_profile"]
+GENERIC_PROFILE: Mapping[str, Any] = MANIFEST["generic_profile"]
+PRESET_PROFILES: Mapping[str, Mapping[str, Any]] = MANIFEST["profiles"]
+PROFILES: Mapping[str, Mapping[str, Any]] = {
+    GENERIC_PROFILE["name"]: GENERIC_PROFILE,
+    **PRESET_PROFILES,
+}
 KNOWN_PROFILES: Tuple[str, ...] = tuple(PROFILES)
 DATA_PROFILES = frozenset(
     name for name, profile in PROFILES.items() if profile["requires_data_contracts"]
@@ -83,6 +107,8 @@ SCAFFOLD_SUPPORT_FILES: Tuple[str, ...] = tuple(MANIFEST["scaffold_support_files
 CORE_OPERATING_FILES: Tuple[str, ...] = tuple(MANIFEST["core_operating_files"])
 LIVING_DOCUMENTS: Tuple[str, ...] = tuple(MANIFEST["living_documents"])
 PRESENCE_RULES: Mapping[str, Mapping[str, Any]] = MANIFEST["presence_rules"]
+CUSTOM_PROFILE_RULES: Mapping[str, Any] = MANIFEST["custom_profiles"]
+CUSTOM_PROFILE_FILE: str = CUSTOM_PROFILE_RULES["project_file"]
 
 
 def profile_required_files(profile: str) -> Tuple[str, ...]:

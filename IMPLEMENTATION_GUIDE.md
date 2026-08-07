@@ -15,13 +15,14 @@ The loop, in one sentence: **read state → propose ONE dispatch → the agent p
 
 ---
 
-## 1. Pick a profile
+## 1. Pick the generic core, a preset, or a custom profile
 
-The profile shapes the project. Declare it once; it decides which artifacts are required and what "reproducible" means.
+Running `chartworkai init` without a profile installs the project-agnostic `generic` core. The six named profiles are optional presets, not a closed list of project categories. A profile decides which artifacts are required and what "reproducible" means.
 
 <!-- BEGIN GENERATED PROFILE TABLE -->
 | Profile | Deliverable | Data contracts | "Reproducible" means |
 |---|---|---|---|
+| [`generic`](profiles/generic.md) | a project-defined deliverable | not required | the project-defined validation commands pass |
 | [`data-science`](profiles/data-science.md) | reproducible analysis / report | required | byte-identical rebuild from raw |
 | [`software-app`](profiles/software-app.md) | running / deployable software | not required | build + tests pass |
 | [`database`](profiles/database.md) | a curated dataset | required | deterministic rebuild + quality baselines |
@@ -30,7 +31,7 @@ The profile shapes the project. Declare it once; it decides which artifacts are 
 | [`deployed-service`](profiles/deployed-service.md) | a deployed service + infrastructure | not required | config + image digest + job URI trace a release |
 <!-- END GENERATED PROFILE TABLE -->
 
-Each profile has a spec in [`profiles/`](profiles/) covering its required artifacts, verify contract, default roles and the real implementations it is drawn from.
+Each built-in profile has a spec in [`profiles/`](profiles/) covering its required artifacts, verify contract, and default roles. For another project type, copy [`templates/custom_profile.template.json`](templates/custom_profile.template.json), set `extends` to `generic` or one of the six presets, and define project-specific roles, required artifacts, scaffold directories, and validation commands. Custom commands are recorded in the charter but never executed implicitly.
 
 ---
 
@@ -42,8 +43,10 @@ Either the CLI (recommended — works from a plain `pip install`, anywhere):
 
 ```
 pip install chartworkai
-chartworkai init ~/projects/trip_planner --name "Trip Planner" --profile software-app
+chartworkai init ~/projects/trip_planner --name "Trip Planner"
 ```
+
+Add `--profile software-app` for that preset, or `--profile-file ./my-profile.json` for a custom contract.
 
 …or the shell script, run from a clone of this repository:
 
@@ -51,7 +54,7 @@ chartworkai init ~/projects/trip_planner --name "Trip Planner" --profile softwar
 scripts/init_project_from_framework.sh  ~/projects/trip_planner  "Trip Planner"  trip_planner  software-app
 ```
 
-Both produce a byte-identical scaffold; CI diffs them on every change.
+For `generic` and the six presets, both entry points produce a byte-identical scaffold; CI diffs them on every change. Custom JSON profiles use the Python package because robust JSON parsing is deliberately not reimplemented in POSIX shell.
 
 This creates the canonical operating files (`PROJECT_CHARTER.md`, `AGENTS.md`, `STATUS.md`, `TASKS.md`, `docs/phase_plan.md`, decisions/handoffs/domain seeds, and — for data profiles — `docs/data/` contracts), copies reference material into `_framework_*` folders, and runs the compliance check.
 
@@ -159,12 +162,13 @@ Run `./scripts/check_framework_compliance.sh .` regularly. It is your drift alar
 
 **Commands**
 ```
-scripts/init_project_from_framework.sh <dir> "Name" slug <profile>   # bootstrap
+scripts/init_project_from_framework.sh <dir> "Name" slug [profile]   # generic/preset bootstrap
 ./scripts/check_framework_compliance.sh .                            # verify / "installed"
 ./scripts/generate_phase_plan.sh .                                   # rebuild phase_plan from state
 
 pip install chartworkai                                                # or use the CLI
-chartworkai init <dir> --name "Name" --profile <profile>               # bootstrap
+chartworkai init <dir> --name "Name"                                  # generic bootstrap
+chartworkai init <dir> --name "Name" --profile-file <file>            # custom bootstrap
 chartworkai check . [--json] [--strict]                                # verify / "installed"
 chartworkai plan .                                                     # rebuild phase_plan from state
 chartworkai state .                                                    # where the project stands

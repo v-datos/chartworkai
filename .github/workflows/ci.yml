@@ -195,7 +195,7 @@ jobs:
       - name: The shell and Python scaffolds must be byte-identical
         run: |
           set -eu
-          for profile in software-app data-science; do
+          for profile in generic software-app data-science; do
             rm -rf "/tmp/sh_$profile" "/tmp/py_$profile"
             sh scripts/init_project_from_framework.sh "/tmp/sh_$profile" "Parity Project" \
               parity_project "$profile" >/dev/null 2>&1 || true

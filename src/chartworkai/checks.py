@@ -19,25 +19,33 @@ from __future__ import annotations
 import re
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, Mapping, Optional, Tuple
 
 from chartworkai.manifest import (
     CORE_OPERATING_FILES,
-    DATA_PROFILES,
-    DEFAULT_PROFILE,
+    CUSTOM_PROFILE_FILE,
     KNOWN_PROFILES,
+    LEGACY_PROFILE,
     LIVING_DOCUMENTS,
     PRESENCE_RULES,
+    PROFILES,
     REQUIRED_DIRECTORIES,
     REQUIRED_FILES,
     STRICT_PROFILE,
-    profile_required_directories,
-    profile_required_files,
+)
+from chartworkai.manifest import (
+    DATA_PROFILES as _DATA_PROFILES,
 )
 from chartworkai.models import Report, Status
+from chartworkai.profile_config import (
+    ProfileConfigError,
+    effective_custom_profile,
+    load_custom_profile,
+)
 
 # --- Conventions -------------------------------------------------------------
 
+DATA_PROFILES = _DATA_PROFILES  # Backward-compatible public import.
 CORE_DOCS = CORE_OPERATING_FILES
 DUPLICATE_H2_TARGETS = LIVING_DOCUMENTS
 
@@ -151,27 +159,61 @@ def _rel(root: Path, path: Path) -> str:
         return path.as_posix()
 
 
+def _is_inside(root: Path, path: Path) -> bool:
+    try:
+        path.resolve().relative_to(root)
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def _profile_name(root: Path) -> Optional[str]:
+    charter = root / "PROJECT_CHARTER.md"
+    if not charter.is_file():
+        return None
+    match = PROFILE_RE.search(_read(charter, root))
+    return match.group(1) if match else None
+
+
+def _resolve_profile(
+    root: Path,
+) -> Tuple[Optional[str], bool, Mapping[str, Any], Optional[str], bool]:
+    profile = _profile_name(root)
+    if profile is None:
+        spec = PROFILES[LEGACY_PROFILE]
+        return None, bool(spec["requires_data_contracts"]), spec, None, False
+    if profile in KNOWN_PROFILES:
+        spec = PROFILES[profile]
+        return profile, bool(spec["requires_data_contracts"]), spec, None, False
+
+    config_path = root / CUSTOM_PROFILE_FILE
+    try:
+        definition = load_custom_profile(config_path)
+        if definition["name"] != profile:
+            raise ProfileConfigError(
+                f"custom profile name {definition['name']!r} does not match "
+                f"PROJECT_CHARTER.md profile {profile!r}"
+            )
+        spec = effective_custom_profile(definition)
+        return profile, bool(spec["requires_data_contracts"]), spec, None, True
+    except ProfileConfigError as exc:
+        spec = PROFILES[STRICT_PROFILE]
+        return profile, True, spec, str(exc), False
+
+
 def detect_profile(root: Path) -> Tuple[Optional[str], bool]:
     """Return ``(profile, is_data_profile)`` from the charter's ``Profile:`` line.
 
-    An absent or unparseable profile defaults to a data profile, which keeps every
-    project created before profiles existed passing unchanged.
+    An absent or unparseable profile uses the manifest's legacy profile, which keeps
+    every project created before profiles existed behaving unchanged.
 
     An **unrecognised** value also defaults to a data profile — deliberately the
     strictest reading. Treating a typo as non-data would let ``Profile: data-sciece``
     silently drop the data-contract requirement, turning a misspelling into a way to
     weaken compliance. A separate check reports the unknown value as a failure.
     """
-    charter = root / "PROJECT_CHARTER.md"
-    if not charter.is_file():
-        return None, DEFAULT_PROFILE in DATA_PROFILES
-    match = PROFILE_RE.search(_read(charter, root))
-    if not match:
-        return None, DEFAULT_PROFILE in DATA_PROFILES
-    profile = match.group(1)
-    if profile not in KNOWN_PROFILES:
-        return profile, bool(DATA_PROFILES)
-    return profile, profile in DATA_PROFILES
+    profile, is_data_profile, _, _, _ = _resolve_profile(root)
+    return profile, is_data_profile
 
 
 def detect_framework_repo(root: Path) -> bool:
@@ -258,7 +300,13 @@ def _decision_files(root: Path) -> List[Path]:
 # --- Individual checks -------------------------------------------------------
 
 
-def _check_profile_is_known(root: Path, report: Report, profile: Optional[str]) -> None:
+def _check_profile_is_known(
+    report: Report,
+    profile: Optional[str],
+    profile_error: Optional[str],
+    is_custom: bool,
+    profile_spec: Mapping[str, Any],
+) -> None:
     """A charter profile outside the known set is a typo, and typos must not pass.
 
     Reported explicitly because the fail-safe in ``detect_profile`` would otherwise
@@ -268,41 +316,60 @@ def _check_profile_is_known(root: Path, report: Report, profile: Optional[str]) 
         report.add(
             "profile",
             Status.PASS,
-            f"no Profile declared; defaulting to {DEFAULT_PROFILE}",
+            f"no Profile declared; using legacy profile {LEGACY_PROFILE}",
         )
         return
-    if profile in KNOWN_PROFILES:
+    if is_custom:
+        report.add("profile", Status.PASS, f"custom profile: {profile}")
+        report.add(
+            "custom_profile",
+            Status.PASS,
+            f"{CUSTOM_PROFILE_FILE} is valid and extends {profile_spec['extends']}",
+            path=CUSTOM_PROFILE_FILE,
+        )
+        commands = list(profile_spec["validation_commands"])
+        report.add(
+            "validation_commands",
+            Status.PASS,
+            f"custom profile declares {len(commands)} validation command(s); "
+            "commands are not executed implicitly",
+            path=CUSTOM_PROFILE_FILE,
+            details=commands,
+        )
+    elif profile in KNOWN_PROFILES:
         report.add("profile", Status.PASS, f"profile: {profile}")
     else:
         report.add(
             "profile",
             Status.FAIL,
-            f"unknown profile {profile!r} in PROJECT_CHARTER.md — expected one of "
-            f"{', '.join(KNOWN_PROFILES)}. Treating it as a data profile until fixed.",
+            f"unknown profile {profile!r} in PROJECT_CHARTER.md — use generic, one of "
+            f"{', '.join(KNOWN_PROFILES[1:])}, or provide a valid {CUSTOM_PROFILE_FILE}. "
+            "Treating it as a data profile until fixed.",
             path="PROJECT_CHARTER.md",
+            details=[profile_error] if profile_error else [],
         )
 
 
-def _effective_profile(profile: Optional[str]) -> str:
-    if profile is None:
-        return DEFAULT_PROFILE
-    return profile if profile in KNOWN_PROFILES else STRICT_PROFILE
-
-
-def _check_required_artifacts(root: Path, report: Report, profile: Optional[str]) -> None:
-    effective = _effective_profile(profile)
-    profile_files = profile_required_files(effective)
+def _check_required_artifacts(
+    root: Path,
+    report: Report,
+    profile_spec: Mapping[str, Any],
+    is_data_profile: bool,
+) -> None:
+    profile_files = tuple(profile_spec["required_files"])
     for rel in REQUIRED_FILES + profile_files:
-        if (root / rel).is_file():
+        path = root / rel
+        if path.is_file() and _is_inside(root, path):
             report.add("required_file", Status.PASS, rel, path=rel)
         else:
             report.add("required_file", Status.FAIL, f"{rel} is missing", path=rel)
-    for rel in REQUIRED_DIRECTORIES + profile_required_directories(effective):
-        if (root / rel).is_dir():
+    for rel in REQUIRED_DIRECTORIES + tuple(profile_spec["required_directories"]):
+        path = root / rel
+        if path.is_dir() and _is_inside(root, path):
             report.add("required_dir", Status.PASS, f"{rel}/", path=rel)
         else:
             report.add("required_dir", Status.FAIL, f"{rel}/ is missing", path=rel)
-    if not profile_files:
+    if not is_data_profile:
         report.add(
             "data_contracts",
             Status.PASS,
@@ -701,7 +768,7 @@ def run_checks(project_root, self_audit: bool = False) -> Report:
     than one the audited directory gets to make about itself.
     """
     root = Path(project_root).resolve()
-    profile, is_data_profile = detect_profile(root)
+    profile, is_data_profile, profile_spec, profile_error, is_custom = _resolve_profile(root)
     framework_repo = self_audit
 
     report = Report(
@@ -712,8 +779,8 @@ def run_checks(project_root, self_audit: bool = False) -> Report:
     )
 
     _check_no_escaping_symlinks(root, report)
-    _check_profile_is_known(root, report, profile)
-    _check_required_artifacts(root, report, profile)
+    _check_profile_is_known(report, profile, profile_error, is_custom, profile_spec)
+    _check_required_artifacts(root, report, profile_spec, is_data_profile)
     _check_seed_decision(root, report)
     _check_handoffs(root, report)
 

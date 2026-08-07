@@ -44,8 +44,8 @@ Usage:
 Refuses to overwrite an existing governance layer unless --force is given.
 
 Creates a minimal project scaffold from ChartworkAI. Run from the repository root.
-PROFILE defaults to the framework manifest's default. Non-data profiles skip
-profile-specific data contracts and layout.
+PROFILE defaults to the project-agnostic generic core. The six named presets add
+deliverable-specific roles, artifacts, and layout.
 
 Example:
   scripts/init_project_from_framework.sh ../my_app "My App" my_app software-app
@@ -126,6 +126,11 @@ IS_DATA_PROFILE=0
 if cw_profile_requires_data_contracts "$PROFILE"; then
   IS_DATA_PROFILE=1
 fi
+PROFILE_ROLES="$(cw_profile_default_roles "$PROFILE" | awk '
+  BEGIN { separator = "" }
+  { printf "%s%s", separator, $0; separator = ", " }
+  END { print "" }
+')"
 
 mkdir -p "$TARGET_DIR"
 cd "$TARGET_DIR"
@@ -225,7 +230,7 @@ Exit criteria:
 
 ## Team
 
-Roles are defined in AGENTS.md. Minimum active roles are Orchestrator, Domain Expert, Producer, Analyst, and QA / Reproducibility Engineer.
+Roles are defined in AGENTS.md. Profile roles: $PROFILE_ROLES.
 
 ## Success Criteria
 
@@ -252,8 +257,14 @@ Roles are defined in AGENTS.md. Minimum active roles are Orchestrator, Domain Ex
 - $DATE_ISO: Initial framework scaffold created.
 EOF
 
-sed -e "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" -e "s|{{PROJECT_SLUG}}|$PROJECT_SLUG|g" \
-  "$FRAMEWORK_ROOT/templates/AGENTS.template.md" > AGENTS.md
+AGENTS_TEMPLATE="$FRAMEWORK_ROOT/templates/AGENTS.template.md"
+if [ "$PROFILE" = "$CW_DEFAULT_PROFILE" ]; then
+  AGENTS_TEMPLATE="$FRAMEWORK_ROOT/templates/AGENTS.generic.template.md"
+fi
+sed -e "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" \
+    -e "s|{{PROJECT_SLUG}}|$PROJECT_SLUG|g" \
+    -e "s|{{DEFAULT_ROLE_LIST}}|$PROFILE_ROLES|g" \
+    "$AGENTS_TEMPLATE" > AGENTS.md
 
 cat > docs/phase_plan.md <<EOF
 # Phase Plan - $PROJECT_NAME

@@ -20,15 +20,23 @@ It is deliberately runtime-agnostic and works with any language, stack, assistan
 ```bash
 pip install chartworkai                                   # zero runtime dependencies
 
-chartworkai init ./my-project --name "My Project" \
-    --profile software-app                                # scaffold the governance layer
+chartworkai init ./my-project --name "My Project"          # generic governance core
 chartworkai check .                                       # is it installed and healthy?
 chartworkai check . --json                                # machine-readable, for CI and agents
 chartworkai plan .                                        # rebuild the phase plan from state
 chartworkai mcp                                           # serve it to an AI assistant
 ```
 
-Pick a **profile** for what you actually ship — `software-app`, `data-science`, `database`, `competition-ml`, `investigation`, `deployed-service` — and it decides which artifacts are required and what "reproducible" means for you. A web app is never asked for a data dictionary.
+The default `generic` profile is project-agnostic. The six optional presets — `software-app`, `data-science`, `database`, `competition-ml`, `investigation`, `deployed-service` — add proven defaults for common deliverables. A web app is never asked for a data dictionary.
+
+For a project outside those presets, define its roles, required artifacts, directories, and validation commands in a JSON profile:
+
+```bash
+chartworkai init ./case-review --name "Case Review" \
+    --profile-file ./case-review.profile.json
+```
+
+Start from [`templates/custom_profile.template.json`](templates/custom_profile.template.json). The validated contract is copied to `chartworkai.profile.json` in the new project and enforced by `chartworkai check`. Validation commands are recorded, never executed implicitly.
 
 A fresh scaffold **deliberately fails `check`** until you fill in the placeholders and delete the `_framework_*` reference folders. That is the graduation gate, not a bug.
 
@@ -78,7 +86,7 @@ A project has **not** been initialized from this framework until these artifacts
 - `docs/handoffs/README.md` or at least one dated handoff note
 - `docs/domain/README.md`
 
-**Data profiles only** (`data-science`, `database`, `competition-ml`) additionally require the contract triad. A `software-app`, `investigation` or `deployed-service` project is never asked for these:
+**Data presets only** (`data-science`, `database`, `competition-ml`) additionally require the contract triad. A custom profile inherits this requirement only when it extends a data preset:
 
 - `docs/data/data_dictionary.md`
 - `docs/data/lineage.md`

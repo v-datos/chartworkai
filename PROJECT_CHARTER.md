@@ -2,7 +2,7 @@
 
 **Owner:** Orchestrator agent. Only the Orchestrator modifies this document.
 **Status:** Living document — revised at every phase transition and whenever scope changes.
-**Last updated:** 2026-08-06
+**Last updated:** 2026-08-07
 **Profile:** software-app (this methodology/docs repo ships software — scripts, templates, the checker) — see `docs/decisions/20260607_DEC002_profile_model.md`
 
 > This project **dogfoods the framework on itself**: the framework's own productization is run using the framework's charter / roles / decisions / handoffs / phases.
@@ -111,12 +111,13 @@ Decisions that change scope, conventions, or phase gating are recorded here and 
 | 2026-08-05 | Three pre-release audits gate the first publication | Orchestrator / Dogfood & Compliance QA | `docs/decisions/20260805_DEC009_release_audit_remediation.md` |
 | 2026-08-06 | Publish through staged OIDC workflows | Orchestrator / Dogfood & Compliance QA | `docs/decisions/20260806_DEC010_trusted_publishing.md` |
 | 2026-08-06 | Make framework.json the executable contract | Framework Architect / Dogfood & Compliance QA | `docs/decisions/20260806_DEC011_authoritative_manifest.md` |
+| 2026-08-06 | Make presets optional and support project-owned custom profiles | Framework Architect / Dogfood & Compliance QA | `docs/decisions/20260806_DEC012_generic_and_custom_profiles.md` |
 
 ## 9. Risks and mitigations
 
 | Risk | Likelihood | Impact | Mitigation | Owner |
 |---|---|---|---|---|
-| Scope creep: profiles balloon into many bespoke configs | High | High | Keep profiles a minimal closed set; each must trace to ≥2 audited projects | Framework Architect |
+| Scope creep: presets balloon into many bespoke categories | High | High | Keep built-in presets evidence-backed; use bounded project-owned profiles for domain-specific rules | Framework Architect |
 | Over-fitting to these 9 domains | Medium | Medium | Design profiles to be open/extensible; validate against a held-out domain | Framework Architect |
 | Changes break the validated core or existing installs | Medium | High | Core stays additive; every change gated by Dogfood QA (bootstrap + compliance + example projects) | Dogfood & Compliance QA |
 | Dogfooding decay (we stop using our own rituals) | Medium | Medium | No phase closes unless our own compliance check passes | Orchestrator |
@@ -124,7 +125,7 @@ Decisions that change scope, conventions, or phase gating are recorded here and 
 
 ## 10. Glossary
 
-- **Profile / deliverable-type** — a named configuration (research-report, database, competition-ml, software-app, investigation, deployed-service) that sets directory layout, required artifacts, the meaning of "reproducibility," and default roles.
+- **Profile / deliverable-type** — the generic core, an optional evidence-backed preset, or a bounded project-owned configuration that sets layout, required artifacts, validation commands, and default roles.
 - **Agnosticism** — the framework working across domains, stacks, languages, and AI assistants without data-science assumptions leaking in.
 - **Dogfood / self-hosting** — using the framework to manage the framework's own development.
 - **The audit set** — the 9 real implementations reviewed on 2026-06-07 that form this project's evidence base (see `docs/domain/README.md`).
@@ -138,6 +139,7 @@ Decisions that change scope, conventions, or phase gating are recorded here and 
 - **v1.2 (2026-06-13)** — Phase 2 closed: packaged all four extensions (external-tracker, claims-gate, experiment-log, assistant-primer), shipped `scripts/generate_phase_plan.sh` living-doc generator, added staleness and bloat compliance checks, and resolved handoff and decision-log prefix conventions.
 - **v1.3 (2026-06-13)** — Phase 3 closed: generalized tool leaks, drafted open-core product model & go-to-market decision (DEC-004), verified compliance checks (including leftover framework folder check and leak checker), and finalized phase-3 reproducibility report.
 - **v1.4 (2026-06-13)** — **Released as v1.0.0.** Productization (Phases 0–3) complete and independently verified; tightened the tool-leak slash-command check to a closed set of known assistant commands (no more absolute-path false-positives); bumped `framework.json` to 1.0.0; tagged the release.
+- **v1.5 (2026-08-07)** — Framework contract 1.2.0 makes the generic core the initialization default and treats the six evidence-backed profiles as optional presets; bounded project-owned profiles can extend either layer without implicit command execution (DEC-012 / T-025).
 
 ## Open questions for the user
 

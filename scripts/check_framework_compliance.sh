@@ -30,7 +30,7 @@ failures=0
 DATA_PROFILE=1
 PROFILE_KNOWN=1
 project_profile=""
-profile_rule="$CW_DEFAULT_PROFILE"
+profile_rule="$CW_LEGACY_PROFILE"
 
 # Framework identity is ASSERTED by the caller, never inferred from the audited
 # tree. It relaxes the placeholder, scaffold and assistant-name checks, and any
@@ -332,12 +332,12 @@ check_no_leftover_scaffolds() {
 detect_profile_settings() {
   # Only ever called once confinement has passed, so this read cannot follow a link
   # out of the project. The profile is the first token after a "Profile:" line;
-  # if absent, use the manifest default (backward-compatible).
+  # if absent, use the manifest's legacy profile (backward-compatible).
   charter_for_profile="$PROJECT_ROOT/PROJECT_CHARTER.md"
   [ -f "$charter_for_profile" ] || return 0
   project_profile="$(sed -n 's/.*Profile:[*[:space:]]*\([A-Za-z0-9_-][A-Za-z0-9_-]*\).*/\1/p' "$charter_for_profile" | head -n 1)"
   if [ -z "$project_profile" ]; then
-    project_profile="$CW_DEFAULT_PROFILE"
+    project_profile="$CW_LEGACY_PROFILE"
   elif ! cw_profile_known "$project_profile"; then
     DATA_PROFILE=1
     PROFILE_KNOWN=0
@@ -451,7 +451,15 @@ check_no_escaping_symlinks
 detect_profile_settings
 
 if [ "$PROFILE_KNOWN" -eq 0 ]; then
-  fail "unknown profile '$project_profile' in PROJECT_CHARTER.md — expected one of $CW_KNOWN_PROFILES. Treating it as a data profile until fixed."
+  if [ -f "$PROJECT_ROOT/$CW_CUSTOM_PROFILE_FILE" ]; then
+    if command -v chartworkai >/dev/null 2>&1; then
+      info "Custom profile detected; delegating to the Python checker."
+      exec chartworkai check "$PROJECT_ROOT"
+    fi
+    fail "custom profile '$project_profile' requires the ChartworkAI Python package; run: chartworkai check '$PROJECT_ROOT'"
+  else
+    fail "unknown profile '$project_profile' in PROJECT_CHARTER.md — expected one of $CW_KNOWN_PROFILES or a valid $CW_CUSTOM_PROFILE_FILE. Treating it as a data profile until fixed."
+  fi
 else
   pass "profile is recognised"
 fi

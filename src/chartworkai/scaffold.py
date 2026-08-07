@@ -15,14 +15,19 @@ from typing import Any, Dict, List, Optional
 
 from chartworkai.assets import asset_root, template_path
 from chartworkai.manifest import (
-    DATA_PROFILES,
     DEFAULT_PROFILE,
     KNOWN_PROFILES,
     MANAGED_FILES,
+    PROFILES,
     REFERENCE_DIRECTORIES,
     SCAFFOLD_DIRECTORIES,
     SCAFFOLD_SUPPORT_FILES,
     profile_scaffold_directories,
+)
+from chartworkai.profile_config import (
+    effective_custom_profile,
+    load_custom_profile,
+    serialize_custom_profile,
 )
 from chartworkai.safety import (
     UnsafePathError,
@@ -37,7 +42,7 @@ from chartworkai.safety import (
 #: — so init refuses when any of it already exists unless explicitly forced.
 CANONICAL_DOCS = MANAGED_FILES
 BASE_DIRS = SCAFFOLD_DIRECTORIES
-DATA_DIRS = profile_scaffold_directories(DEFAULT_PROFILE)
+DATA_DIRS = profile_scaffold_directories("data-science")
 REFERENCE_DIRS = REFERENCE_DIRECTORIES
 SHELL_SCRIPTS = SCAFFOLD_SUPPORT_FILES
 
@@ -78,6 +83,7 @@ def init_project(
     project_name: str,
     project_slug: Optional[str] = None,
     profile: str = DEFAULT_PROFILE,
+    profile_file: Optional[Path] = None,
     today: Optional[_dt.date] = None,
     force: bool = False,
 ) -> Dict[str, Any]:
@@ -89,12 +95,21 @@ def init_project(
     initializes normally.
 
     Raises:
-        ValueError: the profile is unknown, or canonical documents exist and
+        ValueError: the profile or custom profile is invalid, or canonical documents exist and
             *force* is not set.
         NotADirectoryError: the target exists but is not a directory.
     """
-    if profile not in KNOWN_PROFILES:
-        raise ValueError(f"unknown profile {profile!r}. Choose one of: {', '.join(KNOWN_PROFILES)}")
+    custom_definition = None
+    if profile_file is not None:
+        custom_definition = load_custom_profile(Path(profile_file))
+        profile = custom_definition["name"]
+        profile_spec = effective_custom_profile(custom_definition)
+    else:
+        if profile not in KNOWN_PROFILES:
+            raise ValueError(
+                f"unknown profile {profile!r}. Choose one of: {', '.join(KNOWN_PROFILES)}"
+            )
+        profile_spec = PROFILES[profile]
 
     root = Path(target_dir).resolve()
     if root.exists() and not root.is_dir():
@@ -113,9 +128,9 @@ def init_project(
     day = today or _dt.date.today()
     iso = f"{day:%Y-%m-%d}"
     stamp = f"{day:%Y%m%d}"
-    is_data_profile = profile in DATA_PROFILES
+    is_data_profile = bool(profile_spec["requires_data_contracts"])
 
-    directories: List[str] = list(BASE_DIRS) + list(profile_scaffold_directories(profile))
+    directories: List[str] = list(BASE_DIRS) + list(profile_spec["scaffold_directories"])
     for relative in directories:
         safe_mkdir(root, relative)
 
@@ -139,10 +154,26 @@ def init_project(
             destination = safe_copy(root, f"scripts/{script.name}", script)
             destination.chmod(0o755)
 
-    _write(root, "PROJECT_CHARTER.md", _charter(project_name, profile, iso, stamp))
+    if custom_definition is not None:
+        _write(root, "chartworkai.profile.json", serialize_custom_profile(custom_definition))
 
-    agents = template_path("templates/AGENTS.template.md").read_text(encoding="utf-8")
-    agents = agents.replace("{{PROJECT_NAME}}", project_name).replace("{{PROJECT_SLUG}}", slug)
+    _write(
+        root,
+        "PROJECT_CHARTER.md",
+        _charter(project_name, profile, profile_spec, iso, stamp),
+    )
+
+    agents_template = (
+        "templates/AGENTS.generic.template.md"
+        if custom_definition is not None or profile == DEFAULT_PROFILE
+        else "templates/AGENTS.template.md"
+    )
+    agents = template_path(agents_template).read_text(encoding="utf-8")
+    agents = (
+        agents.replace("{{PROJECT_NAME}}", project_name)
+        .replace("{{PROJECT_SLUG}}", slug)
+        .replace("{{DEFAULT_ROLE_LIST}}", ", ".join(profile_spec["default_roles"]))
+    )
     _write(root, "AGENTS.md", agents)
 
     _write(root, "docs/phase_plan.md", _phase_plan(project_name, iso, stamp))
@@ -165,7 +196,12 @@ def init_project(
         "project": project_name,
         "slug": slug,
         "profile": profile,
+        "profile_kind": "custom"
+        if custom_definition is not None
+        else ("generic" if profile == DEFAULT_PROFILE else "preset"),
+        "extends": custom_definition["extends"] if custom_definition is not None else None,
         "is_data_profile": is_data_profile,
+        "validation_commands": list(profile_spec.get("validation_commands", [])),
         "reference_dirs": [f"_framework_{name}" for name in REFERENCE_DIRS],
     }
 
@@ -174,7 +210,20 @@ def init_project(
 # Each mirrors the corresponding heredoc in init_project_from_framework.sh.
 
 
-def _charter(project_name: str, profile: str, iso: str, stamp: str) -> str:
+def _charter(
+    project_name: str,
+    profile: str,
+    profile_spec: Dict[str, Any],
+    iso: str,
+    stamp: str,
+) -> str:
+    validation_commands = list(profile_spec.get("validation_commands", []))
+    verify_command = validation_commands[0] if validation_commands else "{{VERIFY_COMMAND}}"
+    additional_validation = ""
+    if len(validation_commands) > 1:
+        rendered = "\n".join(f"  - `{command}`" for command in validation_commands[1:])
+        additional_validation = f"\n- Additional validation commands:\n{rendered}"
+    team = ", ".join(profile_spec["default_roles"])
     return f"""# Project Charter - {project_name}
 
 Owner: Orchestrator agent
@@ -190,7 +239,7 @@ How this project is built and verified. The verify command is this project's def
 - Package / environment manager: {{{{PACKAGE_MANAGER}}}}
 - Build command: {{{{BUILD_COMMAND}}}}
 - Test command: {{{{TEST_COMMAND}}}}
-- Verify command: {{{{VERIFY_COMMAND}}}}
+- Verify command: {verify_command}{additional_validation}
 
 ## Mission
 
@@ -233,7 +282,7 @@ Exit criteria:
 
 ## Team
 
-Roles are defined in AGENTS.md. Minimum active roles are Orchestrator, Domain Expert, Producer, Analyst, and QA / Reproducibility Engineer.
+Roles are defined in AGENTS.md. Profile roles: {team}.
 
 ## Success Criteria
 

@@ -1,5 +1,27 @@
 # STATUS — ChartworkAI (formerly AI Workflow Framework)
 
+## 2026-08-07 — Generic core and custom profiles
+
+**Prepared by:** Orchestrator
+
+**Shipped:**
+- **Optional presets (T-025 / DEC-012)** — new initialization defaults to the
+  project-agnostic `generic` core; the six existing preset flags retain their contracts.
+- **Project-owned profiles** — `chartworkai init --profile-file FILE` validates and
+  persists custom roles, required artifacts, directories, and validation commands while
+  inheriting from generic or one preset.
+- **Fail-closed safety** — bounded non-symlinked JSON, strict fields and schema version,
+  confined artifact paths, no preset shadowing, and no implicit command execution.
+- **Legacy compatibility** — old projects without a `Profile:` line still receive the
+  `data-science` contract; generic and all presets retain standalone shell support.
+- **Verified distribution** — full tests, shell/Python generic parity, both self-audits,
+  wheel/sdist validation, clean-wheel generic/custom scaffolds, custom shell delegation,
+  and artifact privacy checks pass.
+
+**Next:** build the CrewAI adapter (T-018).
+
+---
+
 ## 2026-08-06 — Phase 4: ChartworkAI package
 
 **Prepared by:** Orchestrator
@@ -91,21 +113,6 @@
 - Framework repository compliance checker runs and passes (exit 0).
 
 **Next:** T-008 — structural living-document decay fixes (phase_plan generation + staleness & bloat checks).
-
----
-
-## 2026-06-07 — Phase 2: T-007 external-tracker sync (first extension)
-
-**Prepared by:** Orchestrator
-
-**Shipped:**
-- Established `extensions/` as the home for optional, opt-in modules (with a catalog README).
-- `extensions/external-tracker-sync/` — README + `integration.template.md` + a tracker-agnostic `sync_tracker.sh`. Mirrors `TASKS.md` / `STATUS.md` to ClickUp/Linear/Notion/etc. Principles: the repo is the source of truth, the tracker is a one-way read-only mirror, and integration config lives in `docs/integrations/` — never pasted into `AGENTS.md` (the audit caught one project doing exactly that).
-- Listed in `framework.json` + `INITIALIZATION_GUIDE.md`.
-
-**Verified:** `sh -n` clean; a dry run mirrors STATUS + TASKS; the framework still passes its own check.
-
-**Next:** T-007b — the remaining three extensions (claims gate, experiment log, assistant primer).
 
 ---
 
