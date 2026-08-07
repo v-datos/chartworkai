@@ -17,6 +17,12 @@
 - **Verified distribution** — full tests, shell/Python generic parity, both self-audits,
   wheel/sdist validation, clean-wheel generic/custom scaffolds, custom shell delegation,
   and artifact privacy checks pass.
+- **ChartworkAI 0.2.0 published (T-026)** — the TestPyPI proof and clean install passed
+  for commit `e82bde2`; tag `chartworkai-v0.2.0` points to that exact commit. The
+  production OIDC workflow repeated provenance, Linux/macOS/Windows, package, secret,
+  and personal-identifier gates before publishing. A fresh public install, version
+  check, generic-default initialization, and state smoke test passed. PyPI and the
+  matching GitHub release are live.
 
 **Next:** build the CrewAI adapter (T-018).
 

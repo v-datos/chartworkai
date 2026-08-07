@@ -24,6 +24,17 @@ Last updated: 2026-08-07
 
 ## Done
 
+- [x] **T-026 — Publish ChartworkAI 0.2.0 to PyPI + GitHub** — 2026-08-07 —
+  Findings: TestPyPI workflow
+  https://github.com/v-datos/chartworkai/actions/runs/31185596989 and a clean exact-version
+  installation passed for commit `e82bde2`. Tag `chartworkai-v0.2.0` points to that
+  exact commit. Production workflow
+  https://github.com/v-datos/chartworkai/actions/runs/31185946789 passed provenance,
+  Linux/macOS/Windows, package, secret, and personal-identifier gates before publishing.
+  A fresh production `pip install chartworkai==0.2.0`, version check, generic-default
+  initialization, and state smoke test passed. PyPI:
+  https://pypi.org/project/chartworkai/0.2.0/. GitHub release:
+  https://github.com/v-datos/chartworkai/releases/tag/chartworkai-v0.2.0.
 - [x] **T-025 — Make presets optional and support custom profiles** — 2026-08-07 —
   Findings: framework contract 1.2.0 makes the domain-neutral `generic` core the
   initialization default while preserving the six presets and the legacy no-profile
