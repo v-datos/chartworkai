@@ -842,3 +842,67 @@ class TestShellCheckerHandlesSpacesInThePath:
         result = run_shell_checker(root)
         assert "unresolved {{PLACEHOLDER}} tokens remain" in result.out
         assert has_fail(run_checks(root), "placeholders")
+
+
+@posix_only
+class TestNothingIsReadBeforeConfinement:
+    """Round-7 finding 1. Moving the *check functions* behind the symlink guard was
+    not enough: profile detection ran during script setup, so a charter symlinked
+    outside the project had its ``Profile:`` value parsed and echoed one line ahead
+    of the link being rejected. Confinement has to precede every read, not just
+    every check."""
+
+    @pytest.mark.parametrize("directory", ["proj", "has space"])
+    def test_an_external_profile_value_never_reaches_the_output(
+        self, tmp_path: Path, directory: str
+    ) -> None:
+        root = tmp_path / directory
+        scaffolded(root)
+        outside = tmp_path / "outside.md"
+        outside.write_text(
+            "# Project Charter - X\n\nProfile: SENTINEL-EXTERNAL-PROFILE\n", encoding="utf-8"
+        )
+        (root / "PROJECT_CHARTER.md").unlink()
+        (root / "PROJECT_CHARTER.md").symlink_to(outside)
+
+        result = run_shell_checker(root)
+        assert result.code != 0
+        assert "SENTINEL-EXTERNAL-PROFILE" not in result.out
+        assert "SENTINEL-EXTERNAL-PROFILE" not in result.err
+        assert "symlink resolves outside the project" in result.out
+
+        # The Python checker must agree; it is the implementation users install.
+        assert "SENTINEL-EXTERNAL-PROFILE" not in json.dumps(run_checks(root).to_dict())
+
+    @pytest.mark.parametrize(
+        "profile",
+        [
+            "data-science",
+            "software-app",
+            "database",
+            "competition-ml",
+            "investigation",
+            "deployed-service",
+        ],
+    )
+    def test_deferring_the_read_did_not_break_profile_detection(
+        self, tmp_path: Path, profile: str
+    ) -> None:
+        """The parse still has to happen — just later."""
+        root = tmp_path / "proj"
+        scaffolded(root, profile=profile)
+        assert "profile is recognised" in run_shell_checker(root).out
+
+    def test_an_unknown_profile_is_still_reported(self, tmp_path: Path) -> None:
+        root = tmp_path / "proj"
+        scaffolded(root)
+        charter = root / "PROJECT_CHARTER.md"
+        charter.write_text(
+            charter.read_text(encoding="utf-8").replace(
+                "Profile: software-app", "Profile: data-sciece"
+            ),
+            encoding="utf-8",
+        )
+        result = run_shell_checker(root)
+        assert "unknown profile 'data-sciece'" in result.out
+        assert result.code != 0

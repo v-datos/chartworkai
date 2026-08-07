@@ -229,3 +229,27 @@ jobs:
             echo "::error::Parity broken on the framework repo (shell=$shell_rc python=$py_rc)"
             exit 1
           fi
+
+  ci:
+    # A single, stable gate for branch protection. Requiring the matrix jobs by name
+    # means the protection rule silently stops covering a version whenever the matrix
+    # changes — py3.10, py3.11 and py3.13 were all running but not required. This job
+    # depends on every other job, so protecting one name protects all of them, and it
+    # keeps working when the matrix does change.
+    name: CI
+    if: always()
+    needs: [test, lint, artifacts, parity]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job must have succeeded
+        run: |
+          set -eu
+          results="${{ join(needs.*.result, ' ') }}"
+          echo "upstream results: $results"
+          for result in $results; do
+            if [ "$result" != "success" ]; then
+              echo "::error::a required job did not succeed ($results)"
+              exit 1
+            fi
+          done
+          echo "all jobs succeeded"

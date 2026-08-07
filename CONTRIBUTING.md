@@ -8,6 +8,14 @@ record.**
 
 Requires Python 3.9 or newer.
 
+**Supported and tested range: 3.9 – 3.13.** `requires-python` is `>=3.9` with no upper
+bound, which is the normal convention for a library — capping it makes pip resolve to
+an older release instead of saying why. The practical consequence is that pip will
+install this on 3.14 too, a version CI does not exercise. It is expected to work
+(the suite passed there when it was last run) but it is not a version we verify, so
+treat a 3.14 problem as unsupported until 3.14 is added to the matrix and to the
+classifiers together.
+
 ```bash
 git clone https://github.com/v-datos/chartworkai.git
 cd chartworkai

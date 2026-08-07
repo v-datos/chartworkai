@@ -12,23 +12,15 @@ failures=0
 
 # --- Profile awareness (deliverable type) -----------------------------------
 # Data profiles require the docs/data/ contract triad; others do not.
-# The profile is the first token after a "Profile:" line in PROJECT_CHARTER.md;
-# if absent, default to data-science (backward-compatible).
+#
+# Defaults only. The charter is NOT read here: reading it during setup happened
+# before the symlink guard could run, so a charter symlinked outside the project had
+# its Profile: value parsed and echoed in a failure message one line ahead of the
+# link being rejected. Parsing is deferred to detect_profile_settings(), invoked
+# after confinement passes.
 DATA_PROFILE=1
 PROFILE_KNOWN=1
-charter_for_profile="$PROJECT_ROOT/PROJECT_CHARTER.md"
-if [ -f "$charter_for_profile" ]; then
-  project_profile="$(sed -n 's/.*Profile:[*[:space:]]*\([A-Za-z0-9_-][A-Za-z0-9_-]*\).*/\1/p' "$charter_for_profile" | head -n 1)"
-  case "$project_profile" in
-    data-science|database|competition-ml) DATA_PROFILE=1 ;;
-    software-app|investigation|deployed-service) DATA_PROFILE=0 ;;
-    "") DATA_PROFILE=1 ;;
-    # An unrecognised value is a typo. Treat it as a data profile — the strictest
-    # reading — so a misspelling cannot be used to drop the data-contract
-    # requirement, and report it separately as a failure.
-    *) DATA_PROFILE=1; PROFILE_KNOWN=0 ;;
-  esac
-fi
+project_profile=""
 
 # Framework identity is ASSERTED by the caller, never inferred from the audited
 # tree. It relaxes the placeholder, scaffold and assistant-name checks, and any
@@ -327,6 +319,24 @@ check_no_leftover_scaffolds() {
   fi
 }
 
+detect_profile_settings() {
+  # Only ever called once confinement has passed, so this read cannot follow a link
+  # out of the project. The profile is the first token after a "Profile:" line;
+  # if absent, default to data-science (backward-compatible).
+  charter_for_profile="$PROJECT_ROOT/PROJECT_CHARTER.md"
+  [ -f "$charter_for_profile" ] || return 0
+  project_profile="$(sed -n 's/.*Profile:[*[:space:]]*\([A-Za-z0-9_-][A-Za-z0-9_-]*\).*/\1/p' "$charter_for_profile" | head -n 1)"
+  case "$project_profile" in
+    data-science|database|competition-ml) DATA_PROFILE=1 ;;
+    software-app|investigation|deployed-service) DATA_PROFILE=0 ;;
+    "") DATA_PROFILE=1 ;;
+    # An unrecognised value is a typo. Treat it as a data profile — the strictest
+    # reading — so a misspelling cannot be used to drop the data-contract
+    # requirement, and report it separately as a failure.
+    *) DATA_PROFILE=1; PROFILE_KNOWN=0 ;;
+  esac
+}
+
 check_no_escaping_symlinks() {
   # A governance document must be a real file inside the project. A symlink pointing
   # outside is either a mistake or an attempt to have the tool read and report on a
@@ -420,13 +430,17 @@ check_tool_leaks() {
 info "Checking AI workflow framework installation in: $PROJECT_ROOT"
 info ""
 
+check_no_escaping_symlinks
+
+# Safe to read the charter only now: the guard above exits on an escaping link.
+detect_profile_settings
+
 if [ "$PROFILE_KNOWN" -eq 0 ]; then
   fail "unknown profile '$project_profile' in PROJECT_CHARTER.md — expected one of data-science, software-app, database, competition-ml, investigation, deployed-service. Treating it as a data profile until fixed."
 else
   pass "profile is recognised"
 fi
 
-check_no_escaping_symlinks
 check_file "PROJECT_CHARTER.md"
 check_file "AGENTS.md"
 check_file "docs/phase_plan.md"

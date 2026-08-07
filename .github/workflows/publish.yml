@@ -189,11 +189,17 @@ jobs:
               # Deliberately generic: the provider patterns above only catch formats
               # someone thought to enumerate. A bare `token = "..."` slipped through
               # the earlier, narrower list.
+              #
+              # Quotes are optional. Requiring them missed every form that does not
+              # use them — `API_TOKEN=value` in a shell script or dotenv, and
+              # `token: value` in YAML, which is exactly how a leaked credential
+              # tends to be written.
               ("assigned secret", re.compile(
                   rb"(?i)\b[a-z0-9_.-]*"
                   rb"(?:api[_-]?key|secret|token|passwd|password|credential|"
                   rb"private[_-]?key|access[_-]?id|bearer|session[_-]?id|signature)"
-                  rb"[a-z0-9_.-]*\s*[:=]\s*[\"']([^\"'\s]{16,})[\"']")),
+                  rb"[a-z0-9_.-]*\s*[:=]\s*"
+                  rb"(?:[\"']([^\"'\n]{16,}?)[\"']|([^\"'\s#][^\s#]{15,}))")),
           ]
 
           #: Values that name a secret rather than being one: shell and template
@@ -240,7 +246,9 @@ jobs:
                       continue
                   for label, pattern in CREDENTIALS:
                       for match in pattern.finditer(blob):
-                          value = match.group(match.lastindex or 0)
+                          # Two capture groups (quoted / unquoted); take whichever fired.
+                          captured = [g for g in match.groups() if g] or [match.group(0)]
+                          value = captured[0]
                           if label == "assigned secret":
                               # An indirection is not a secret: `TOKEN="${TOKEN:-}"`
                               # reads a value at runtime, it does not carry one.
