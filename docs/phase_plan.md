@@ -5,16 +5,16 @@
 
 **Last updated:** 2026-08-06
 **Current phase:** Phase 4 — ChartworkAI package & launch
-**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 ships the product as software: the `chartworkai` CLI now covers `init`, `check`, `plan`, `state`, and `mcp`, with framework assets packaged in the wheel and shell/Python scaffold parity enforced in CI. T-020 is gated on a successful TestPyPI OIDC upload and clean installation before the production tag; then make `framework.json` authoritative (T-016) and build the CrewAI adapter (T-018).
+**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 ships the product as software: `chartworkai` 0.1.0 is live on PyPI after staged OIDC publication, and the CLI covers `init`, `check`, `plan`, `state`, and `mcp`, with framework assets packaged in the wheel and shell/Python scaffold parity enforced in CI. Next, make `framework.json` authoritative (T-016), then build the CrewAI adapter (T-018).
 
 ## Active agents
 
 | Agent | Status | Current task | Blocking on |
 |---|---|---|---|
 | Orchestrator | Idle | Available for assignment | — |
-| Framework Architect | Idle | Available for assignment | — |
+| Framework Architect | Active | T-016 — Make `framework.json` authoritative | — |
 | Template & Docs Engineer | Idle | Available for assignment | — |
-| Dogfood & Compliance QA | Active | T-020 — Publish v0.1.0 to PyPI + GitHub release | Awaiting TestPyPI proof run from corrected `main` |
+| Dogfood & Compliance QA | Idle | Available for assignment | — |
 | Audit & Research Analyst | Standby | Available for assignment | — |
 
 ## Current phase exit criteria (Phase 4)
@@ -23,6 +23,7 @@
 - [x] Project initialization script copies extensions and guides cleanup (T-011).
 - [x] Repositioning and generalization to drop assistant-exclusive framing (T-012).
 - [x] Product model and go-to-market strategy defined (DEC-004) (T-012).
+- [x] ChartworkAI 0.1.0 published through staged OIDC after TestPyPI proof (T-020).
 
 ## Dispatch queue (next up)
 
@@ -33,8 +34,7 @@
 
 ## Open blockers
 
-- None currently filed. Both pending publishers match `publish.yml`; the required
-  TestPyPI upload and clean install remain a release gate, not an external blocker.
+- None currently filed.
 
 ## Decision log (recent)
 
