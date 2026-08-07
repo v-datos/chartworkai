@@ -21,52 +21,25 @@ import time
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from chartworkai.manifest import (
+    CORE_OPERATING_FILES,
+    DATA_PROFILES,
+    DEFAULT_PROFILE,
+    KNOWN_PROFILES,
+    LIVING_DOCUMENTS,
+    PRESENCE_RULES,
+    REQUIRED_DIRECTORIES,
+    REQUIRED_FILES,
+    STRICT_PROFILE,
+    profile_required_directories,
+    profile_required_files,
+)
 from chartworkai.models import Report, Status
 
 # --- Conventions -------------------------------------------------------------
 
-#: Profiles whose deliverable is data, and which therefore require the
-#: ``docs/data/`` contract triad.
-DATA_PROFILES = frozenset({"data-science", "database", "competition-ml"})
-
-#: Every profile the framework recognises. A value outside this set is a typo, not
-#: an extension point: silently accepting one hands the project the wrong
-#: governance contract with no warning.
-KNOWN_PROFILES = (
-    "data-science",
-    "software-app",
-    "database",
-    "competition-ml",
-    "investigation",
-    "deployed-service",
-)
-
-CORE_DOCS = ("PROJECT_CHARTER.md", "AGENTS.md", "STATUS.md", "TASKS.md")
-
-REQUIRED_FILES = (
-    "PROJECT_CHARTER.md",
-    "AGENTS.md",
-    "docs/phase_plan.md",
-    "STATUS.md",
-    "TASKS.md",
-)
-
-DATA_CONTRACT_FILES = (
-    "docs/data/data_dictionary.md",
-    "docs/data/lineage.md",
-    "docs/data/watchlist.md",
-)
-
-DUPLICATE_H2_TARGETS = (
-    "PROJECT_CHARTER.md",
-    "AGENTS.md",
-    "docs/phase_plan.md",
-    "STATUS.md",
-    "TASKS.md",
-    "docs/data/data_dictionary.md",
-    "docs/data/lineage.md",
-    "docs/data/watchlist.md",
-)
+CORE_DOCS = CORE_OPERATING_FILES
+DUPLICATE_H2_TARGETS = LIVING_DOCUMENTS
 
 SCANNED_SUFFIXES = frozenset({".md", ".json", ".yaml", ".yml"})
 
@@ -191,13 +164,13 @@ def detect_profile(root: Path) -> Tuple[Optional[str], bool]:
     """
     charter = root / "PROJECT_CHARTER.md"
     if not charter.is_file():
-        return None, True
+        return None, DEFAULT_PROFILE in DATA_PROFILES
     match = PROFILE_RE.search(_read(charter, root))
     if not match:
-        return None, True
+        return None, DEFAULT_PROFILE in DATA_PROFILES
     profile = match.group(1)
     if profile not in KNOWN_PROFILES:
-        return profile, True
+        return profile, bool(DATA_PROFILES)
     return profile, profile in DATA_PROFILES
 
 
@@ -270,10 +243,16 @@ def _iter_scannable(root: Path, bases: List[Path]) -> List[Path]:
 
 
 def _decision_files(root: Path) -> List[Path]:
-    directory = root / "docs" / "decisions"
+    rule = PRESENCE_RULES["seed_decision"]
+    directory = root / rule["directory"]
     if not directory.is_dir():
         return []
-    return sorted(p for p in directory.glob("*.md") if p.is_file() and p.name != "README.md")
+    excluded = set(rule.get("exclude", []))
+    return sorted(
+        path
+        for path in directory.glob(rule["glob"])
+        if path.is_file() and path.name not in excluded
+    )
 
 
 # --- Individual checks -------------------------------------------------------
@@ -289,7 +268,7 @@ def _check_profile_is_known(root: Path, report: Report, profile: Optional[str]) 
         report.add(
             "profile",
             Status.PASS,
-            "no Profile declared; defaulting to data-science",
+            f"no Profile declared; defaulting to {DEFAULT_PROFILE}",
         )
         return
     if profile in KNOWN_PROFILES:
@@ -304,27 +283,47 @@ def _check_profile_is_known(root: Path, report: Report, profile: Optional[str]) 
         )
 
 
-def _check_required_files(root: Path, report: Report) -> None:
-    for rel in REQUIRED_FILES:
+def _effective_profile(profile: Optional[str]) -> str:
+    if profile is None:
+        return DEFAULT_PROFILE
+    return profile if profile in KNOWN_PROFILES else STRICT_PROFILE
+
+
+def _check_required_artifacts(root: Path, report: Report, profile: Optional[str]) -> None:
+    effective = _effective_profile(profile)
+    profile_files = profile_required_files(effective)
+    for rel in REQUIRED_FILES + profile_files:
         if (root / rel).is_file():
             report.add("required_file", Status.PASS, rel, path=rel)
         else:
             report.add("required_file", Status.FAIL, f"{rel} is missing", path=rel)
+    for rel in REQUIRED_DIRECTORIES + profile_required_directories(effective):
+        if (root / rel).is_dir():
+            report.add("required_dir", Status.PASS, f"{rel}/", path=rel)
+        else:
+            report.add("required_dir", Status.FAIL, f"{rel}/ is missing", path=rel)
+    if not profile_files:
+        report.add(
+            "data_contracts",
+            Status.PASS,
+            "Profile is non-data: docs/data/ contract triad not required (skipped)",
+        )
 
 
-def _check_decisions_dir(root: Path, report: Report) -> None:
-    if (root / "docs" / "decisions").is_dir():
-        report.add("required_dir", Status.PASS, "docs/decisions/", path="docs/decisions")
-    else:
-        report.add("required_dir", Status.FAIL, "docs/decisions/ is missing", path="docs/decisions")
-
-    readme = "docs/decisions/README.md"
-    if (root / readme).is_file():
-        report.add("required_file", Status.PASS, readme, path=readme)
-    else:
-        report.add("required_file", Status.FAIL, f"{readme} is missing", path=readme)
-
-    if _decision_files(root):
+def _check_seed_decision(root: Path, report: Report) -> None:
+    rule = PRESENCE_RULES["seed_decision"]
+    directory = root / rule["directory"]
+    excluded = set(rule.get("exclude", []))
+    records = (
+        [
+            path
+            for path in directory.glob(rule["glob"])
+            if path.is_file() and path.name not in excluded
+        ]
+        if directory.is_dir()
+        else []
+    )
+    if len(records) >= rule["minimum"]:
         report.add(
             "seed_decision", Status.PASS, "docs/decisions contains at least one seed decision"
         )
@@ -337,14 +336,19 @@ def _check_decisions_dir(root: Path, report: Report) -> None:
 
 
 def _check_handoffs(root: Path, report: Report) -> None:
-    directory = root / "docs" / "handoffs"
-    if directory.is_dir():
-        report.add("required_dir", Status.PASS, "docs/handoffs/", path="docs/handoffs")
-    else:
-        report.add("required_dir", Status.FAIL, "docs/handoffs/ is missing", path="docs/handoffs")
-
-    notes = [p for p in directory.glob("*.md")] if directory.is_dir() else []
-    if (directory / "README.md").is_file() or notes:
+    rule = PRESENCE_RULES["handoff"]
+    directory = root / rule["directory"]
+    excluded = set(rule.get("exclude", []))
+    notes = (
+        [
+            path
+            for path in directory.glob(rule["glob"])
+            if path.is_file() and path.name not in excluded
+        ]
+        if directory.is_dir()
+        else []
+    )
+    if len(notes) >= rule["minimum"]:
         report.add(
             "handoff_present",
             Status.PASS,
@@ -356,34 +360,6 @@ def _check_handoffs(root: Path, report: Report) -> None:
             Status.FAIL,
             "docs/handoffs needs README.md or at least one handoff note",
         )
-
-
-def _check_domain(root: Path, report: Report) -> None:
-    if (root / "docs" / "domain").is_dir():
-        report.add("required_dir", Status.PASS, "docs/domain/", path="docs/domain")
-    else:
-        report.add("required_dir", Status.FAIL, "docs/domain/ is missing", path="docs/domain")
-
-    readme = "docs/domain/README.md"
-    if (root / readme).is_file():
-        report.add("required_file", Status.PASS, readme, path=readme)
-    else:
-        report.add("required_file", Status.FAIL, f"{readme} is missing", path=readme)
-
-
-def _check_data_contracts(root: Path, report: Report, is_data_profile: bool) -> None:
-    if not is_data_profile:
-        report.add(
-            "data_contracts",
-            Status.PASS,
-            "Profile is non-data: docs/data/ contract triad not required (skipped)",
-        )
-        return
-    for rel in DATA_CONTRACT_FILES:
-        if (root / rel).is_file():
-            report.add("required_file", Status.PASS, rel, path=rel)
-        else:
-            report.add("required_file", Status.FAIL, f"{rel} is missing", path=rel)
 
 
 def _check_duplicate_h2(root: Path, report: Report) -> None:
@@ -737,11 +713,9 @@ def run_checks(project_root, self_audit: bool = False) -> Report:
 
     _check_no_escaping_symlinks(root, report)
     _check_profile_is_known(root, report, profile)
-    _check_required_files(root, report)
-    _check_decisions_dir(root, report)
+    _check_required_artifacts(root, report, profile)
+    _check_seed_decision(root, report)
     _check_handoffs(root, report)
-    _check_domain(root, report)
-    _check_data_contracts(root, report, is_data_profile)
 
     _check_duplicate_h2(root, report)
     _check_placeholders(root, report, framework_repo)

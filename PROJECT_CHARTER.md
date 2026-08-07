@@ -110,6 +110,7 @@ Decisions that change scope, conventions, or phase gating are recorded here and 
 | 2026-08-05 | Version framework and package separately, with prefixed tags | Orchestrator | `docs/decisions/20260805_DEC008_versioning_scheme.md` |
 | 2026-08-05 | Three pre-release audits gate the first publication | Orchestrator / Dogfood & Compliance QA | `docs/decisions/20260805_DEC009_release_audit_remediation.md` |
 | 2026-08-06 | Publish through staged OIDC workflows | Orchestrator / Dogfood & Compliance QA | `docs/decisions/20260806_DEC010_trusted_publishing.md` |
+| 2026-08-06 | Make framework.json the executable contract | Framework Architect / Dogfood & Compliance QA | `docs/decisions/20260806_DEC011_authoritative_manifest.md` |
 
 ## 9. Risks and mitigations
 

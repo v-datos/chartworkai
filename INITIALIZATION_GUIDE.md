@@ -184,9 +184,16 @@ A project is **not initialized** until all of these exist:
 - `docs/decisions/README.md` plus at least one seed decision file
 - `docs/handoffs/README.md` or at least one dated handoff note
 - `docs/domain/README.md`
+
+Data profiles (`data-science`, `database`, and `competition-ml`) additionally require:
+
 - `docs/data/data_dictionary.md`
 - `docs/data/lineage.md`
 - `docs/data/watchlist.md`
+
+Non-data profiles do not require the data-contract triad. These rules come from the
+packaged `framework.json`; the Python checker reads it directly and the standalone shell
+checker uses its generated projection in `scripts/framework_config.sh`.
 
 Verify this with:
 

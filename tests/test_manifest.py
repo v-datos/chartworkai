@@ -1,20 +1,23 @@
-"""The manifest must not drift from the code and files it describes.
+"""The manifest is the executable source of truth for the framework contract.
 
 ``framework.json`` is the machine-readable description of the product: which
 profiles exist, what each requires, and which templates, prompts, scripts and
-extensions ship. Nothing enforces it at runtime, so without these tests it can
-quietly describe a product that no longer exists — a rename or a new profile is
-enough. The checker is the source of truth for behaviour; the manifest must agree
-with it and point only at files that are really there.
+extensions ship. Python loads it directly; POSIX shell and the profile tables use
+generated projections that CI requires to be current.
 """
 
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
+import sys
 
 import pytest
 from conftest import REPO_ROOT
 
+from chartworkai import manifest
+from chartworkai.assets import asset_root
 from chartworkai.checks import DATA_PROFILES, KNOWN_PROFILES
 
 MANIFEST_PATH = REPO_ROOT / "framework.json"
@@ -23,21 +26,35 @@ PROFILES = MANIFEST["profiles"]
 
 #: Inventory keys whose values are paths that must exist in the repository.
 INVENTORY_KEYS = ("templates", "prompts", "scripts", "extensions")
+needs_sh = pytest.mark.skipif(
+    shutil.which("sh") is None or sys.platform == "win32",
+    reason="The generated shell projection is exercised on POSIX runners.",
+)
 
 
-class TestProfilesAgreeWithTheChecker:
-    """The manifest and ``checks.py`` must describe the same six profiles."""
+class TestProfilesDriveTheRuntime:
+    """Runtime profile choices are objects loaded from the packaged manifest."""
 
     def test_the_manifest_lists_exactly_the_known_profiles(self):
         assert set(PROFILES) == set(KNOWN_PROFILES)
+        assert KNOWN_PROFILES is manifest.KNOWN_PROFILES
 
     def test_the_default_profile_is_one_of_them(self):
         assert MANIFEST["default_profile"] in PROFILES
+        assert manifest.DEFAULT_PROFILE == MANIFEST["default_profile"]
 
     @pytest.mark.parametrize("name", sorted(PROFILES))
     def test_the_data_contract_flag_matches_the_checker(self, name):
         """A mismatch here would require the triad in docs but not in the tool."""
         assert PROFILES[name]["requires_data_contracts"] is (name in DATA_PROFILES)
+
+    def test_required_artifacts_are_loaded_from_the_manifest(self):
+        assert manifest.REQUIRED_FILES == tuple(MANIFEST["required_files"])
+        assert manifest.REQUIRED_DIRECTORIES == tuple(MANIFEST["required_directories"])
+        assert manifest.MANAGED_FILES == tuple(MANIFEST["managed_files"])
+
+    def test_the_packaged_asset_root_contains_the_authority(self):
+        assert (asset_root() / "framework.json").read_bytes() == MANIFEST_PATH.read_bytes()
 
     @pytest.mark.parametrize("name", sorted(PROFILES))
     def test_data_profiles_declare_the_triad_and_others_declare_nothing(self, name):
@@ -71,6 +88,8 @@ class TestEveryProfileIsFullyDescribed:
     def test_reproducibility_and_roles_are_declared(self, name):
         spec = PROFILES[name]
         assert spec["reproducibility"].strip()
+        assert spec["deliverable"].strip()
+        assert spec["verification_summary"].strip()
         assert spec["default_roles"], f"{name} declares no roles"
         assert "Orchestrator" in spec["default_roles"]
 
@@ -114,6 +133,64 @@ class TestInventoryPointsAtRealFiles:
         """A stray spec file would document a profile the tool rejects."""
         on_disk = {p.stem for p in (REPO_ROOT / "profiles").glob("*.md") if p.stem != "README"}
         assert on_disk == set(KNOWN_PROFILES)
+
+
+class TestGeneratedProjections:
+    @staticmethod
+    def shell_lines(command):
+        result = subprocess.run(
+            ["sh", "-c", f". scripts/framework_config.sh; {command}"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.splitlines()
+
+    def test_shell_and_profile_docs_are_current(self):
+        result = subprocess.run(
+            [sys.executable, "scripts/sync_framework_manifest.py", "--check"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+
+    @pytest.mark.parametrize("name", sorted(PROFILES))
+    @needs_sh
+    def test_generated_shell_recognises_every_profile(self, name):
+        script = f'. scripts/framework_config.sh; cw_profile_known "{name}"'
+        result = subprocess.run(["sh", "-c", script], cwd=REPO_ROOT)
+        assert result.returncode == 0
+
+    @needs_sh
+    def test_generated_shell_rejects_an_unknown_profile(self):
+        result = subprocess.run(
+            ["sh", "-c", '. scripts/framework_config.sh; cw_profile_known "unknown"'],
+            cwd=REPO_ROOT,
+        )
+        assert result.returncode != 0
+
+    @needs_sh
+    def test_shell_required_artifacts_match_the_manifest(self):
+        assert self.shell_lines("cw_required_files") == MANIFEST["required_files"]
+        assert self.shell_lines("cw_required_directories") == MANIFEST["required_directories"]
+
+    @pytest.mark.parametrize("name", sorted(PROFILES))
+    @needs_sh
+    def test_shell_profile_rules_match_the_manifest(self, name):
+        assert (
+            self.shell_lines(f"cw_profile_required_files {name}")
+            == PROFILES[name]["required_files"]
+        )
+        assert (
+            self.shell_lines(f"cw_profile_required_directories {name}")
+            == PROFILES[name]["required_directories"]
+        )
+        assert (
+            self.shell_lines(f"cw_profile_scaffold_directories {name}")
+            == PROFILES[name]["scaffold_directories"]
+        )
 
 
 class TestVersionsAreCoherent:

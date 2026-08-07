@@ -22,9 +22,12 @@
   and personal-identifier gates before publishing to PyPI. A fresh production
   `pip install chartworkai==0.1.0` and `chartworkai init` smoke test passed. The public
   GitHub release carries the changelog notes.
+- **`framework.json` is authoritative (T-016)** — framework contract 1.1.0 now drives
+  Python profile/file/layout behavior directly and generates the standalone POSIX shell
+  projection plus public profile tables. CI rejects projection drift. FW-002 is resolved,
+  and a built wheel proves the manifest and shell configuration ship correctly.
 
-**Next:** make `framework.json` authoritative (T-016), then build the CrewAI adapter
-(T-018).
+**Next:** build the CrewAI adapter (T-018).
 
 ---
 

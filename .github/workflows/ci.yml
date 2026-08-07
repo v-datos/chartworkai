@@ -63,6 +63,9 @@ jobs:
       - name: Ruff format
         run: ruff format --check src tests
 
+      - name: Manifest projections are current
+        run: python scripts/sync_framework_manifest.py --check
+
       - name: Shell scripts parse cleanly
         run: |
           status=0

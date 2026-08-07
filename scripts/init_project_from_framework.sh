@@ -1,6 +1,16 @@
 #!/usr/bin/env sh
 set -eu
 
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+FRAMEWORK_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
+if [ ! -f "$SCRIPT_DIR/framework_config.sh" ]; then
+  printf 'error: generated framework configuration is missing: %s\n' \
+    "$SCRIPT_DIR/framework_config.sh" >&2
+  exit 1
+fi
+# shellcheck source=framework_config.sh
+. "$SCRIPT_DIR/framework_config.sh"
+
 # Refuse to write through a symlink at ANY component of a path under BASE.
 # A top-level check is not enough: a symlinked docs/decisions/ carries a write out
 # just as effectively, a *dangling* link makes the write create its external target,
@@ -33,14 +43,14 @@ Usage:
 
 Refuses to overwrite an existing governance layer unless --force is given.
 
-Creates a minimal project scaffold from ChartworkAI. Run from the
-repository root. PROFILE (default data-science) is one of: data-science,
-software-app, database, competition-ml, investigation, deployed-service. Non-data
-profiles skip the docs/data/ contract triad and the data/ + reports/ layout.
+Creates a minimal project scaffold from ChartworkAI. Run from the repository root.
+PROFILE defaults to the framework manifest's default. Non-data profiles skip
+profile-specific data contracts and layout.
 
 Example:
   scripts/init_project_from_framework.sh ../my_app "My App" my_app software-app
 USAGE
+  printf 'Profiles: %s (default: %s)\n' "$CW_KNOWN_PROFILES" "$CW_DEFAULT_PROFILE"
 }
 
 if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
@@ -72,17 +82,15 @@ fi
 TARGET_DIR="$1"
 PROJECT_NAME="$2"
 PROJECT_SLUG="${3:-}"
-PROFILE="${4:-data-science}"
+PROFILE="${4:-$CW_DEFAULT_PROFILE}"
 
 # An unrecognised profile is a typo, not an extension point: accepting one hands
 # the project the wrong governance contract with no warning.
-case "$PROFILE" in
-  data-science|software-app|database|competition-ml|investigation|deployed-service) ;;
-  *)
-    printf 'error: unknown profile %s. Choose one of: data-science, software-app, database, competition-ml, investigation, deployed-service\n' "$PROFILE" >&2
-    exit 1
-    ;;
-esac
+if ! cw_profile_known "$PROFILE"; then
+  printf 'error: unknown profile %s. Choose one of: %s\n' \
+    "$PROFILE" "$CW_KNOWN_PROFILES" >&2
+  exit 1
+fi
 
 DATE_ISO="$(date +%Y-%m-%d)"
 DATE_STAMP="$(date +%Y%m%d)"
@@ -91,15 +99,12 @@ DATE_STAMP="$(date +%Y%m%d)"
 # that already has other files is fine; only these documents are protected.
 if [ "$FORCE" -eq 0 ] && [ -d "$TARGET_DIR" ]; then
   CLASHES=""
-  for rel in PROJECT_CHARTER.md AGENTS.md STATUS.md TASKS.md docs/phase_plan.md \
-             docs/decisions/README.md docs/handoffs/README.md docs/domain/README.md \
-             docs/style_guide.md docs/data/data_dictionary.md docs/data/lineage.md \
-             docs/data/watchlist.md; do
+  for rel in $(cw_managed_files); do
     [ -e "$TARGET_DIR/$rel" ] && CLASHES="$CLASHES $rel"
   done
   for rel in "docs/decisions/${DATE_STAMP}_DEC001_charter_v1.md" \
              "docs/handoffs/${DATE_ISO}_orchestrator.md" \
-             scripts/check_framework_compliance.sh scripts/generate_phase_plan.sh; do
+             $(cw_scaffold_support_files); do
     [ -e "$TARGET_DIR/$rel" ] && CLASHES="$CLASHES $rel"
   done
   for dir in "$TARGET_DIR"/_framework_*; do
@@ -118,32 +123,30 @@ if [ -z "$PROJECT_SLUG" ]; then
 fi
 
 IS_DATA_PROFILE=0
-case "$PROFILE" in
-  data-science|database|competition-ml) IS_DATA_PROFILE=1 ;;
-esac
-
-FRAMEWORK_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+if cw_profile_requires_data_contracts "$PROFILE"; then
+  IS_DATA_PROFILE=1
+fi
 
 mkdir -p "$TARGET_DIR"
 cd "$TARGET_DIR"
 
 # Every directory this scaffold will build, checked component by component before
 # anything is created.
-for guard in docs docs/decisions docs/handoffs docs/domain docs/reproducibility \
-             src tests scripts docs/data data data/raw data/external data/interim \
-             data/processed reports reports/figures reports/tables reports/draft; do
+ALL_SCAFFOLD_DIRS="$(cw_scaffold_directories
+for _profile in $CW_KNOWN_PROFILES; do
+  cw_profile_scaffold_directories "$_profile"
+done)"
+for guard in $ALL_SCAFFOLD_DIRS; do
   assert_inside "." "$guard"
 done
 
-mkdir -p docs/decisions docs/handoffs docs/domain docs/reproducibility
-mkdir -p src tests scripts
-if [ "$IS_DATA_PROFILE" -eq 1 ]; then
-  mkdir -p docs/data data/raw data/external data/interim data/processed reports/figures reports/tables reports/draft
-fi
+for directory in $(cw_scaffold_directories) $(cw_profile_scaffold_directories "$PROFILE"); do
+  mkdir -p "$directory"
+done
 
 # Remove first: `cp -R src dest` nests inside dest when it already exists, which
 # under --force left stale files behind and broke parity with the Python entry point.
-for ref in templates agents prompts extensions; do
+for ref in $(cw_reference_directories); do
   if [ -L "./_framework_$ref" ]; then
     printf 'error: refusing to replace a symlinked reference directory: _framework_%s\n' "$ref" >&2
     exit 1
@@ -152,19 +155,16 @@ for ref in templates agents prompts extensions; do
   cp -R "$FRAMEWORK_ROOT/$ref" "./_framework_$ref"
 done
 # Every file this scaffold writes. Checked here so --force cannot follow a symlink.
-for guard in PROJECT_CHARTER.md AGENTS.md STATUS.md TASKS.md docs/phase_plan.md \
-             docs/style_guide.md docs/decisions/README.md docs/handoffs/README.md \
-             docs/domain/README.md docs/data/data_dictionary.md docs/data/lineage.md \
-             docs/data/watchlist.md scripts/check_framework_compliance.sh \
-             scripts/generate_phase_plan.sh \
+for guard in $(cw_managed_files) $(cw_scaffold_support_files) \
              "docs/decisions/${DATE_STAMP}_DEC001_charter_v1.md" \
              "docs/handoffs/${DATE_ISO}_orchestrator.md"; do
   assert_inside "." "$guard"
 done
 
-cp "$FRAMEWORK_ROOT/scripts/check_framework_compliance.sh" ./scripts/check_framework_compliance.sh
-cp "$FRAMEWORK_ROOT/scripts/generate_phase_plan.sh" ./scripts/generate_phase_plan.sh
-chmod +x ./scripts/check_framework_compliance.sh ./scripts/generate_phase_plan.sh
+for support in $(cw_scaffold_support_files); do
+  cp "$FRAMEWORK_ROOT/$support" "./scripts/$(basename "$support")"
+  chmod +x "./scripts/$(basename "$support")"
+done
 
 cat > PROJECT_CHARTER.md <<EOF
 # Project Charter - $PROJECT_NAME

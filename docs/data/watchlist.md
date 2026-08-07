@@ -6,7 +6,6 @@ Repurposed for this profile: instead of data-quality anomalies, this tracks fram
 
 | ID | Severity | Issue | Owner | Next action / task |
 |---|---|---|---|---|
-| FW-002 | Low | `framework.json` requires `docs/handoffs/README.md` while the checker accepts README-*or*-a-note | Template & Docs Engineer | Reconcile manifest ↔ checker |
 | FW-003 | Low | Committed cruft (`.DS_Store`, `.idea/`) in the framework repo | Template & Docs Engineer | Clean + gitignore (Phase 3) |
 | FW-004 | High | README / FRAMEWORK_OVERVIEW still carry origin-project + data-science framing | Template & Docs Engineer | Repositioning (T-012, Phase 3) |
 | FW-005 | High | "Reproducibility = byte-identical rebuild" assumed in base prose | Framework Architect | Per-profile reproducibility now defined (DEC-003); de-Python base prose in T-004 |
@@ -19,6 +18,7 @@ Repurposed for this profile: instead of data-quality anomalies, this tracks fram
 
 | ID | Issue | Resolution |
 |---|---|---|
+| FW-002 | Manifest required `docs/handoffs/README.md` while the checker accepted README-*or*-a-note | Resolved 2026-08-06 (T-016): the manifest now defines a handoff presence rule, and both checkers consume its generated/runtime projection. |
 | FW-001 | Checker assumed a consumer layout; flagged the framework's own templates/agents/prompts placeholders | Resolved 2026-06-07 (T-006): framework-repo self-detection scopes the placeholder scan to this project's operating artifacts. |
 | FW-006 | No deliverable-type / profile concept | Resolved 2026-06-07 (T-002): profile model in framework.json v0.4.0 + `profiles/`; checker is profile-aware. |
 

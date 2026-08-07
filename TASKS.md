@@ -4,10 +4,6 @@ Last updated: 2026-08-06
 
 ## In Progress
 
-- [ ] **T-016 — Make `framework.json` authoritative**
-  Owner: Framework Architect
-  Done criteria: one schema drives init, validation, and docs; scripts stop hardcoding profile/file rules
-
 ## Queued (Phase 4 — ChartworkAI package & launch)
 
 - [ ] **T-018 — CrewAI adapter (`chartworkai export/ingest crewai`)**
@@ -28,6 +24,13 @@ Last updated: 2026-08-06
 
 ## Done
 
+- [x] **T-016 — Make `framework.json` authoritative** — 2026-08-06 — Findings:
+  DEC-011 makes framework contract 1.1.0 the source of truth for profiles, required
+  artifacts, managed files, and scaffold layout. Python loads the packaged manifest
+  directly; POSIX scripts and both profile tables use generated projections checked by
+  CI. FW-002 is resolved through manifest-defined presence rules. Full tests, shell/Python
+  parity, both compliance implementations, wheel/sdist checks, clean wheel installation,
+  scaffold smoke testing, and artifact privacy checks pass.
 - [x] **T-020 — Publish v0.1.0 to PyPI + GitHub release** — 2026-08-06 — Findings:
   TestPyPI proof and clean installation passed for commit `8938896`; the production tag
   `chartworkai-v0.1.0` points to that exact commit. The protected OIDC workflow passed

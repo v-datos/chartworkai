@@ -73,8 +73,10 @@ packages = ["src/chartworkai"]
 "prompts" = "chartworkai/_assets/prompts"
 "extensions" = "chartworkai/_assets/extensions"
 "profiles" = "chartworkai/_assets/profiles"
+"framework.json" = "chartworkai/_assets/framework.json"
 "scripts/check_framework_compliance.sh" = "chartworkai/_assets/scripts/check_framework_compliance.sh"
 "scripts/generate_phase_plan.sh" = "chartworkai/_assets/scripts/generate_phase_plan.sh"
+"scripts/framework_config.sh" = "chartworkai/_assets/scripts/framework_config.sh"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

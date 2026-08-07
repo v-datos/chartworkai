@@ -13,8 +13,17 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from chartworkai.assets import REFERENCE_DIRS, SHELL_SCRIPTS, asset_root, template_path
-from chartworkai.checks import DATA_PROFILES, KNOWN_PROFILES
+from chartworkai.assets import asset_root, template_path
+from chartworkai.manifest import (
+    DATA_PROFILES,
+    DEFAULT_PROFILE,
+    KNOWN_PROFILES,
+    MANAGED_FILES,
+    REFERENCE_DIRECTORIES,
+    SCAFFOLD_DIRECTORIES,
+    SCAFFOLD_SUPPORT_FILES,
+    profile_scaffold_directories,
+)
 from chartworkai.safety import (
     UnsafePathError,
     resolve_within,
@@ -26,43 +35,11 @@ from chartworkai.safety import (
 #: Everything init writes or replaces. All of it can represent real human work — a
 #: curated decision index or domain note is no less someone's effort than the charter
 #: — so init refuses when any of it already exists unless explicitly forced.
-CANONICAL_DOCS = (
-    "PROJECT_CHARTER.md",
-    "AGENTS.md",
-    "STATUS.md",
-    "TASKS.md",
-    "docs/phase_plan.md",
-    "docs/decisions/README.md",
-    "docs/handoffs/README.md",
-    "docs/domain/README.md",
-    "docs/style_guide.md",
-    "docs/data/data_dictionary.md",
-    "docs/data/lineage.md",
-    "docs/data/watchlist.md",
-)
-
-#: Directories every project gets, whatever its profile.
-BASE_DIRS = (
-    "docs/decisions",
-    "docs/handoffs",
-    "docs/domain",
-    "docs/reproducibility",
-    "src",
-    "tests",
-    "scripts",
-)
-
-#: Extra layout for profiles whose deliverable is data.
-DATA_DIRS = (
-    "docs/data",
-    "data/raw",
-    "data/external",
-    "data/interim",
-    "data/processed",
-    "reports/figures",
-    "reports/tables",
-    "reports/draft",
-)
+CANONICAL_DOCS = MANAGED_FILES
+BASE_DIRS = SCAFFOLD_DIRECTORIES
+DATA_DIRS = profile_scaffold_directories(DEFAULT_PROFILE)
+REFERENCE_DIRS = REFERENCE_DIRECTORIES
+SHELL_SCRIPTS = SCAFFOLD_SUPPORT_FILES
 
 
 def slugify(project_name: str) -> str:
@@ -100,7 +77,7 @@ def init_project(
     target_dir,
     project_name: str,
     project_slug: Optional[str] = None,
-    profile: str = "data-science",
+    profile: str = DEFAULT_PROFILE,
     today: Optional[_dt.date] = None,
     force: bool = False,
 ) -> Dict[str, Any]:
@@ -138,9 +115,7 @@ def init_project(
     stamp = f"{day:%Y%m%d}"
     is_data_profile = profile in DATA_PROFILES
 
-    directories: List[str] = list(BASE_DIRS)
-    if is_data_profile:
-        directories += list(DATA_DIRS)
+    directories: List[str] = list(BASE_DIRS) + list(profile_scaffold_directories(profile))
     for relative in directories:
         safe_mkdir(root, relative)
 

@@ -11,15 +11,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List
 
-#: Directories copied into a new project as ``_framework_*`` reference material.
-REFERENCE_DIRS = ("templates", "agents", "prompts", "extensions")
-
-#: Shell scripts copied into a new project so it works without the package too.
-SHELL_SCRIPTS = (
-    "scripts/check_framework_compliance.sh",
-    "scripts/generate_phase_plan.sh",
-)
-
 
 def _candidates() -> List[Path]:
     here = Path(__file__).resolve().parent
@@ -33,12 +24,16 @@ def _candidates() -> List[Path]:
 def asset_root() -> Path:
     """The directory holding ``templates/``, ``agents/``, ``prompts/``, ``extensions/``."""
     for candidate in _candidates():
-        if (candidate / "templates").is_dir() and (candidate / "agents").is_dir():
+        if (
+            (candidate / "templates").is_dir()
+            and (candidate / "agents").is_dir()
+            and (candidate / "framework.json").is_file()
+        ):
             return candidate
     raise FileNotFoundError(
         "Could not locate the ChartworkAI assets (templates/, agents/, prompts/, "
-        "extensions/). If you are running from a source checkout, run from the "
-        "repository root; otherwise reinstall the package."
+        "extensions/, framework.json). If you are running from a source checkout, "
+        "run from the repository root; otherwise reinstall the package."
     )
 
 
