@@ -7,19 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [chartworkai 0.2.0] - 2026-08-07
+
+This minor release makes ChartworkAI project-agnostic by default and adds bounded,
+project-owned profile contracts. The framework contract is versioned separately and is
+now 1.2.0.
+
+> This release changes the `chartworkai init` CLI and its `--json` summary: initialization
+> now defaults to `generic`, `--profile-file` accepts custom profile contracts, and the
+> summary reports profile kind, inheritance, and validation commands. All six existing
+> `--profile` values remain supported. The MCP tool names are unchanged.
+
+### Added
+
+- **Project-owned profiles (T-025 / DEC-012).**
+  `chartworkai init --profile-file FILE` accepts a validated contract for custom roles,
+  required artifacts, directories, and non-executed validation commands. Custom profiles
+  can extend the generic core or one of the six existing presets.
+
 ### Changed
 
-- **Profiles are now optional presets (T-025 / DEC-012).** New projects default to a
-  domain-neutral `generic` core. All six existing profile flags remain supported, while
-  `chartworkai init --profile-file FILE` accepts a validated project-owned contract for
-  custom roles, required artifacts, directories, and validation commands. Projects with
-  no `Profile:` line retain the legacy `data-science` checks. The framework contract is
-  now 1.2.0; the Python package version remains independent.
+- **Profiles are now optional presets (T-025 / DEC-012).** New projects default to the
+  domain-neutral `generic` core. All six existing profile flags remain supported, and
+  projects with no `Profile:` line retain the legacy `data-science` checks.
 - **`framework.json` is now authoritative (T-016 / DEC-011).** Python loads profile,
   required-artifact, and scaffold-layout rules directly from the packaged manifest.
   POSIX shell and profile documentation use generated projections, with drift rejected
-  by tests and CI. The framework contract version is now 1.1.0; the Python package
-  version remains independent.
+  by tests and CI.
 
 ## [chartworkai 0.1.0] - 2026-08-05
 
@@ -198,6 +212,7 @@ portable product that installs into any repository.
 - A pull request template and generic role specs for the orchestrator, analyst, data engineer,
   domain expert, and QA engineer.
 
-[Unreleased]: https://github.com/v-datos/chartworkai/compare/chartworkai-v0.1.0...HEAD
+[Unreleased]: https://github.com/v-datos/chartworkai/compare/chartworkai-v0.2.0...HEAD
+[chartworkai 0.2.0]: https://github.com/v-datos/chartworkai/compare/chartworkai-v0.1.0...chartworkai-v0.2.0
 [chartworkai 0.1.0]: https://github.com/v-datos/chartworkai/releases/tag/chartworkai-v0.1.0
 [1.0.0]: https://github.com/v-datos/chartworkai/releases/tag/v1.0.0
