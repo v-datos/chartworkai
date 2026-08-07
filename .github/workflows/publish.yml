@@ -291,7 +291,9 @@ jobs:
 
   testpypi:
     name: Publish to TestPyPI
-    if: github.event_name == 'workflow_dispatch'
+    # A manual dispatch can select any branch in the Actions UI. Test only the final
+    # reviewed main commit; proving an arbitrary branch would not gate production.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     needs: [build]
     runs-on: ubuntu-latest
     environment: testpypi

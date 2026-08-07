@@ -1,15 +1,22 @@
 # TASKS — ChartworkAI
 
-Last updated: 2026-08-04
+Last updated: 2026-08-06
 
 ## In Progress
 
 - [ ] **T-020 — Publish v0.1.0 to PyPI + GitHub release**
   Owner: Dogfood & Compliance QA
   Inputs: built wheel + sdist, `CHANGELOG.md`, the `v1.0.0` tag history
-  Expected output: `pip install chartworkai` works from PyPI; `chartwork` registered defensively as an alias; GitHub release with notes
+  Expected output: `pip install chartworkai` works from PyPI; GitHub release with notes
   Done criteria: a clean machine can `pip install chartworkai` and run `chartworkai init` + `check`
-  Findings (2026-08-05): release **prepared and verified** — sdist + wheel build, both pass `twine check`, and installing the **sdist** into a clean venv scaffolds a project from outside the repo and graduates to green. `RELEASING.md` written; `CHANGELOG` cut; DEC-008 settles the two-version scheme; tag `chartworkai-v0.1.0` created locally. Trimmed the sdist from 4.1 MB to 353 KB by excluding local research artifacts that were being packaged. **Blocked on a human**: the upload needs PyPI credentials and is deliberately not automated.
+  Findings (2026-08-06): package mechanics and security audit pass at `e5a8fe9`; the
+  current release workflow passes all gates on Linux, macOS, and Windows. DEC-010
+  authorizes staged OIDC publishing and `RELEASING.md` now puts TestPyPI before the
+  production tag. No release tag exists yet. **Blocked:** TestPyPI rejected the OIDC
+  claim because its pending publisher did not match. Pending publishers are now
+  registered on both indexes with owner `v-datos`, repository `chartworkai`, workflow
+  `publish.yml`, and environments `testpypi` / `pypi`. Next, merge these corrections
+  to `main`, rerun the workflow, and install `chartworkai==0.1.0` from TestPyPI.
 
 ## Queued (Phase 4 — ChartworkAI package & launch)
 
@@ -57,4 +64,5 @@ Last updated: 2026-08-04
 
 ## Blockers
 
-- None currently filed.
+- None currently filed. Production publication remains gated on a successful TestPyPI
+  workflow run and clean installation.

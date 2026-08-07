@@ -2,7 +2,7 @@
 
 **Owner:** Orchestrator agent. Only the Orchestrator modifies this document.
 **Status:** Living document — revised at every phase transition and whenever scope changes.
-**Last updated:** 2026-06-13
+**Last updated:** 2026-08-06
 **Profile:** software-app (this methodology/docs repo ships software — scripts, templates, the checker) — see `docs/decisions/20260607_DEC002_profile_model.md`
 
 > This project **dogfoods the framework on itself**: the framework's own productization is run using the framework's charter / roles / decisions / handoffs / phases.
@@ -109,6 +109,7 @@ Decisions that change scope, conventions, or phase gating are recorded here and 
 | 2026-08-04 | Final public name is ChartworkAI (amends DEC-005) | Orchestrator | `docs/decisions/20260804_DEC007_final_product_name.md` |
 | 2026-08-05 | Version framework and package separately, with prefixed tags | Orchestrator | `docs/decisions/20260805_DEC008_versioning_scheme.md` |
 | 2026-08-05 | Three pre-release audits gate the first publication | Orchestrator / Dogfood & Compliance QA | `docs/decisions/20260805_DEC009_release_audit_remediation.md` |
+| 2026-08-06 | Publish through staged OIDC workflows | Orchestrator / Dogfood & Compliance QA | `docs/decisions/20260806_DEC010_trusted_publishing.md` |
 
 ## 9. Risks and mitigations
 

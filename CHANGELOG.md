@@ -58,6 +58,12 @@ and are versioned separately (DEC-008).
 Findings from three pre-release audits (DEC-009). The theme is that a governance tool
 must never state something false:
 
+- **The release process contradicted itself.** The runbook created the production tag
+  before its "TestPyPI first" gate, while project state still described a manual token
+  upload after the implementation had moved to OIDC. DEC-010 now records the publishing
+  authority, TestPyPI must succeed against `main` before tagging, and the living
+  documents report the actual release state.
+
 Filesystem-safety and privacy findings from a fourth audit, all reproduced before fixing:
 
 - **The shell bootstrap was still destructive.** The Python `init` had been hardened
