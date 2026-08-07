@@ -5,7 +5,7 @@
 
 **Last updated:** 2026-08-07
 **Current phase:** Phase 4 — ChartworkAI package & launch
-**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 ships the product as software: `chartworkai` 0.1.0 is live on PyPI, and framework contract 1.2.0 now makes the generic core the initialization default while retaining six optional presets and adding bounded project-owned profiles. T-025 is complete; next dispatch is the CrewAI adapter (T-018).
+**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 ships the product as software: `chartworkai` 0.2.0 is live on PyPI, and framework contract 1.2.0 makes the generic core the initialization default while retaining six optional presets and adding bounded project-owned profiles. T-025 and its public package release T-026 are complete; next dispatch is the CrewAI adapter (T-018).
 
 ## Active agents
 
@@ -26,6 +26,7 @@
 - [x] ChartworkAI 0.1.0 published through staged OIDC after TestPyPI proof (T-020).
 - [x] `framework.json` drives runtime, shell projections, and profile tables (T-016).
 - [x] Generic initialization and project-owned custom profiles pass all gates (T-025).
+- [x] ChartworkAI 0.2.0 published through staged OIDC after TestPyPI proof (T-026).
 
 ## Dispatch queue (next up)
 
