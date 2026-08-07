@@ -3,9 +3,9 @@
 > ⚠️ **STOP — READ BEFORE EDITING.**
 > 1. Read this entire file first. 2. Edit sections **in place** — never append a second copy of a section. 3. Hard cap: **200 lines**. 4. If a section is duplicated or this file exceeds the cap, prune to a single canonical form before adding anything.
 
-**Last updated:** 2026-08-05
+**Last updated:** 2026-08-06
 **Current phase:** Phase 4 — ChartworkAI package & launch
-**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 ships the product as software: the `chartworkai` CLI now covers `init`, `check`, `plan`, `state`, and `mcp`, with framework assets packaged in the wheel and shell/Python scaffold parity enforced in CI. Remaining before launch: publish v0.1.0 to PyPI (T-020), make `framework.json` authoritative (T-016), then the CrewAI adapter (T-018).
+**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 ships the product as software: the `chartworkai` CLI now covers `init`, `check`, `plan`, `state`, and `mcp`, with framework assets packaged in the wheel and shell/Python scaffold parity enforced in CI. T-020 is gated on a successful TestPyPI OIDC upload and clean installation before the production tag; then make `framework.json` authoritative (T-016) and build the CrewAI adapter (T-018).
 
 ## Active agents
 
@@ -14,7 +14,7 @@
 | Orchestrator | Idle | Available for assignment | — |
 | Framework Architect | Idle | Available for assignment | — |
 | Template & Docs Engineer | Idle | Available for assignment | — |
-| Dogfood & Compliance QA | Active | T-020 — Publish v0.1.0 to PyPI + GitHub release | — |
+| Dogfood & Compliance QA | Active | T-020 — Publish v0.1.0 to PyPI + GitHub release | Awaiting TestPyPI proof run from corrected `main` |
 | Audit & Research Analyst | Standby | Available for assignment | — |
 
 ## Current phase exit criteria (Phase 4)
@@ -33,12 +33,14 @@
 
 ## Open blockers
 
-- None currently filed.
+- None currently filed. Both pending publishers match `publish.yml`; the required
+  TestPyPI upload and clean install remain a release gate, not an external blocker.
 
 ## Decision log (recent)
 
 | ID | Date | Topic | Status | Authority |
 |---|---|---|---|---|
+| [DEC-010](decisions/20260806_DEC010_trusted_publishing.md) | 2026-08-06 | Publish through staged OIDC workflows | Decided | Orchestrator / Dogfood & Compliance QA |
 | [DEC-009](decisions/20260805_DEC009_release_audit_remediation.md) | 2026-08-05 | Three pre-release audits gate the first publication | Decided | Orchestrator / Dogfood & Compliance QA |
 | [DEC-008](decisions/20260805_DEC008_versioning_scheme.md) | 2026-08-05 | Version the framework and the package separately, with prefixed tags | Decided | Orchestrator |
 | [DEC-007](decisions/20260804_DEC007_final_product_name.md) | 2026-08-04 | Final public name is ChartworkAI | Decided | Orchestrator (with the user) |

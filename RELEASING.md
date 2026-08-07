@@ -3,7 +3,9 @@
 How a ChartworkAI release is cut. Versioning follows
 [`DEC-008`](docs/decisions/20260805_DEC008_versioning_scheme.md): the framework and the
 Python package version independently, and package tags are prefixed
-`chartworkai-vX.Y.Z`.
+`chartworkai-vX.Y.Z`. Publishing follows
+[`DEC-010`](docs/decisions/20260806_DEC010_trusted_publishing.md): prove the exact final
+commit on TestPyPI before creating the production tag.
 
 **A human decides; the workflow uploads.** No API token is stored in this repository —
 publishing runs from `.github/workflows/publish.yml` over PyPI Trusted Publishing, and
@@ -70,15 +72,7 @@ Expect the scaffold to **fail** `check` on unresolved placeholders and the lefto
 `_framework_*` folders — that is the graduation gate. Delete those folders, fill the
 placeholders, and confirm it turns green.
 
-## 4. Tag
-
-```bash
-git tag -a chartworkai-v0.1.0 -m "ChartworkAI 0.1.0 — the governance layer for agentic work"
-git push origin main
-git push origin chartworkai-v0.1.0
-```
-
-## 5. Publish
+## 4. Configure Trusted Publishing
 
 Publishing runs from `.github/workflows/publish.yml` using **Trusted Publishing**
 (OIDC). No API token is stored anywhere: PyPI verifies the workflow's identity —
@@ -103,22 +97,50 @@ normal publisher on first upload. Create the two matching GitHub environments un
 *Settings → Environments* — that is what makes the environment name in the claim
 meaningful, and it is where you can add a manual approval gate.
 
-### TestPyPI first
+PyPI and TestPyPI are separate services. Configure and verify both publisher records;
+an entry on one index does not apply to the other. Never continue after an
+`invalid-publisher` error: delete the mismatched record and recreate it from the table
+above.
 
-Run the **Publish** workflow manually from the Actions tab, then install what it
-published before touching the real index:
+## 5. Prove the release on TestPyPI
+
+Run the **Publish** workflow manually from the Actions tab against the final commit on
+`main`. The workflow must finish green, including **Publish to TestPyPI**. Then install
+the exact version it published before creating any production tag:
 
 ```bash
-pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple chartworkai
+python -m venv /tmp/chartworkai-testpypi
+/tmp/chartworkai-testpypi/bin/pip install \
+  --index-url https://test.pypi.org/simple/ \
+  --no-deps chartworkai==0.1.0
+/tmp/chartworkai-testpypi/bin/chartworkai --version
+/tmp/chartworkai-testpypi/bin/chartworkai init /tmp/chartworkai-testpypi-smoke \
+  --name "TestPyPI Release Smoke" --profile software-app
 ```
 
-### Then PyPI
+The fresh scaffold is expected to fail its initial compliance check until its
+placeholders are customized and `_framework_*` reference folders are removed. The
+release smoke test verifies that the installed command and packaged assets work; that
+expected graduation failure is not a package failure.
 
-Pushing the tag is the whole release.
+Record the successful TestPyPI workflow URL and installation result in `TASKS.md`.
+
+## 6. Tag and publish to PyPI
+
+Only after Step 5 succeeds, confirm that the audited checkout is clean and exactly the
+current remote `main`, then create and push the production tag:
 
 ```bash
+git fetch origin
+test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+test -z "$(git status --porcelain)"
+git tag -a chartworkai-v0.1.0 -m "ChartworkAI 0.1.0 — the governance layer for agentic work"
 git push origin chartworkai-v0.1.0
 ```
+
+The tag starts the production workflow. Review its full gate, approve the protected
+`pypi` environment only after every prerequisite succeeds, and wait for **Publish to
+PyPI** to finish green.
 
 **Tag the current tip of `main`.** A tag is not a review: it can be pushed to any
 commit, including one that never passed CI. The workflow refuses to publish unless the
@@ -146,7 +168,7 @@ Never reuse a tag created in the pre-publication private repository. Those tags 
 into history that was deliberately left behind; create the release tag from a commit
 in this repository.
 
-## 6. After the first release
+## 7. After the first release
 
 - **Do not upload a placeholder to reserve `chartwork`.** The near-miss name is worth
   watching (DEC-007), but PyPI's name-retention policy (PEP 541) treats a project

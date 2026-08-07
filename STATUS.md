@@ -1,6 +1,6 @@
 # STATUS — ChartworkAI (formerly AI Workflow Framework)
 
-## 2026-08-04 — Phase 4: ChartworkAI package
+## 2026-08-06 — Phase 4: ChartworkAI package
 
 **Prepared by:** Orchestrator
 
@@ -16,9 +16,17 @@
 - **`init` and `plan` ported (T-015)** — `chartworkai init` and `chartworkai plan` complete the CLI. Framework assets now ride inside the wheel (hatchling `force-include`), so a plain `pip install` can scaffold a project with no clone of this repo — proven by installing the built wheel into a clean venv and scaffolding outside the repository. Shell and Python scaffolds are **byte-identical** (60/60 files, across profiles), now enforced by a CI job.
 - **Bug fixed in both implementations** — the bootstrap named its seed decision `YYYYMMDD_charter_v1.md`, which fails the checker's own `YYYYMMDD_<NS>###_<title>.md` rule; every freshly scaffolded project was failing on a file the bootstrapper wrote. Now `YYYYMMDD_DEC001_charter_v1.md`.
 
-- **Release prepared (T-020)** — sdist + wheel build and pass `twine check`; installing the **sdist** into a clean venv scaffolds a project from outside the repo and graduates to green, which is what proves the packaged assets resolve for a real user. `RELEASING.md` documents the sequence, the `CHANGELOG` is cut, and DEC-008 settles the two-version scheme (framework and package version independently; package tags are prefixed `chartworkai-v`). Trimmed the sdist from 4.1 MB to 353 KB after finding local research artifacts were being packaged.
+- **Release prepared and independently audited (T-020)** — sdist + wheel build and pass
+  `twine check`; both install cleanly; 1,299 tests pass; CI and the full release gate are
+  green on the supported Python and operating-system matrix. DEC-010 authorizes staged
+  OIDC publishing, requires a successful TestPyPI installation before tagging, and
+  supersedes DEC-008's obsolete manual-credential clauses. No release tag exists yet.
 
-**Next:** a human uploads to PyPI (credentials are deliberately not automated), then `framework.json` authoritative (T-016) and the CrewAI adapter (T-018).
+**Next:** merge the release-process corrections to `main`, run the manual TestPyPI
+workflow, and install `chartworkai==0.1.0` from TestPyPI. Pending publishers now match
+the workflow on both indexes. Only after the TestPyPI proof succeeds may the current
+tip of `main` be tagged for PyPI. Then make `framework.json` authoritative (T-016) and
+build the CrewAI adapter (T-018).
 
 ---
 

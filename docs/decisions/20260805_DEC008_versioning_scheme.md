@@ -2,7 +2,10 @@
 
 **Date:** 2026-08-05
 **Authority:** Orchestrator
-**Status:** Decided
+**Status:** Decided (publishing clauses superseded by DEC-010)
+
+DEC-010 supersedes the manual-credential and no-CI publishing statements below. The
+independent version numbers and prefixed tag namespace remain in force.
 
 ## Context
 
