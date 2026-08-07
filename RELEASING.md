@@ -112,7 +112,7 @@ the exact version it published before creating any production tag:
 python -m venv /tmp/chartworkai-testpypi
 /tmp/chartworkai-testpypi/bin/pip install \
   --index-url https://test.pypi.org/simple/ \
-  --no-deps chartworkai==0.1.0
+  --no-deps chartworkai==0.2.0
 /tmp/chartworkai-testpypi/bin/chartworkai --version
 /tmp/chartworkai-testpypi/bin/chartworkai init /tmp/chartworkai-testpypi-smoke \
   --name "TestPyPI Release Smoke" --profile software-app
@@ -134,8 +134,8 @@ current remote `main`, then create and push the production tag:
 git fetch origin
 test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
 test -z "$(git status --porcelain)"
-git tag -a chartworkai-v0.1.0 -m "ChartworkAI 0.1.0 — the governance layer for agentic work"
-git push origin chartworkai-v0.1.0
+git tag -a chartworkai-v0.2.0 -m "ChartworkAI 0.2.0 — generic core and custom profiles"
+git push origin chartworkai-v0.2.0
 ```
 
 The tag starts the production workflow. Review its full gate, approve the protected
