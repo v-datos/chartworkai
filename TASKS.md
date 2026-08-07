@@ -4,25 +4,12 @@ Last updated: 2026-08-06
 
 ## In Progress
 
-- [ ] **T-020 — Publish v0.1.0 to PyPI + GitHub release**
-  Owner: Dogfood & Compliance QA
-  Inputs: built wheel + sdist, `CHANGELOG.md`, the `v1.0.0` tag history
-  Expected output: `pip install chartworkai` works from PyPI; GitHub release with notes
-  Done criteria: a clean machine can `pip install chartworkai` and run `chartworkai init` + `check`
-  Findings (2026-08-06): package mechanics and security audit pass at `e5a8fe9`; the
-  current release workflow passes all gates on Linux, macOS, and Windows. DEC-010
-  authorizes staged OIDC publishing and `RELEASING.md` now puts TestPyPI before the
-  production tag. No release tag exists yet. **Blocked:** TestPyPI rejected the OIDC
-  claim because its pending publisher did not match. Pending publishers are now
-  registered on both indexes with owner `v-datos`, repository `chartworkai`, workflow
-  `publish.yml`, and environments `testpypi` / `pypi`. Next, merge these corrections
-  to `main`, rerun the workflow, and install `chartworkai==0.1.0` from TestPyPI.
-
-## Queued (Phase 4 — ChartworkAI package & launch)
-
 - [ ] **T-016 — Make `framework.json` authoritative**
   Owner: Framework Architect
   Done criteria: one schema drives init, validation, and docs; scripts stop hardcoding profile/file rules
+
+## Queued (Phase 4 — ChartworkAI package & launch)
+
 - [ ] **T-018 — CrewAI adapter (`chartworkai export/ingest crewai`)**
   Owner: Integrations Engineer
   Done criteria: CrewAI run IDs, traces, and outputs recorded as handoffs/decisions in the repo
@@ -41,6 +28,13 @@ Last updated: 2026-08-06
 
 ## Done
 
+- [x] **T-020 — Publish v0.1.0 to PyPI + GitHub release** — 2026-08-06 — Findings:
+  TestPyPI proof and clean installation passed for commit `8938896`; the production tag
+  `chartworkai-v0.1.0` points to that exact commit. The protected OIDC workflow passed
+  provenance, Linux/macOS/Windows, package, secret, and personal-identifier gates before
+  publishing. A fresh production `pip install chartworkai==0.1.0` and `chartworkai init`
+  smoke test passed. PyPI: https://pypi.org/project/chartworkai/0.1.0/. GitHub release:
+  https://github.com/v-datos/chartworkai/releases/tag/chartworkai-v0.1.0.
 - [x] **T-015 — Port `init` and `plan` to Python** — 2026-08-05 — Findings: `chartworkai init` and `chartworkai plan` shipped. Assets (templates, agents, prompts, extensions, profiles, shell scripts) now ride inside the wheel via hatchling `force-include`, with `assets.py` resolving either a wheel or an editable checkout — verified by installing the built wheel into a clean venv and scaffolding outside the repo. Scaffolds are **byte-identical** to the shell bootstrap across profiles (60/60 files), now enforced by a CI job. One documented divergence: the shell truncates a phase title at `&`; Python reads it in full. Fixed a real bug in BOTH implementations — the seed decision was named `YYYYMMDD_charter_v1.md`, failing the checker's own naming rule in every freshly bootstrapped project.
 - [x] **T-018b — Document MCP setup in the implementation guide** — 2026-08-04 — Findings: MCP config snippet and tool table added to both README and IMPLEMENTATION_GUIDE, plus the CLI commands block.
 - [x] **T-017 — MCP server (`chartworkai mcp`)** — 2026-08-04 — Findings: JSON-RPC 2.0 over stdio implemented with the standard library alone, preserving the zero-dependency promise (an SDK purely to speak a documented wire protocol would have broken it). Four tools: `chartworkai_check`, `chartworkai_state`, `chartworkai_file_decision`, `chartworkai_file_handoff`. Added `src/chartworkai/state.py` for reading project state and writing auto-numbered decision/handoff records; generated decision filenames satisfy the compliance checker's own naming rule. Also added `chartworkai state` to the CLI.
@@ -64,5 +58,4 @@ Last updated: 2026-08-06
 
 ## Blockers
 
-- None currently filed. Production publication remains gated on a successful TestPyPI
-  workflow run and clean installation.
+- None currently filed.

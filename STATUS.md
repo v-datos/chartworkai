@@ -16,17 +16,15 @@
 - **`init` and `plan` ported (T-015)** — `chartworkai init` and `chartworkai plan` complete the CLI. Framework assets now ride inside the wheel (hatchling `force-include`), so a plain `pip install` can scaffold a project with no clone of this repo — proven by installing the built wheel into a clean venv and scaffolding outside the repository. Shell and Python scaffolds are **byte-identical** (60/60 files, across profiles), now enforced by a CI job.
 - **Bug fixed in both implementations** — the bootstrap named its seed decision `YYYYMMDD_charter_v1.md`, which fails the checker's own `YYYYMMDD_<NS>###_<title>.md` rule; every freshly scaffolded project was failing on a file the bootstrapper wrote. Now `YYYYMMDD_DEC001_charter_v1.md`.
 
-- **Release prepared and independently audited (T-020)** — sdist + wheel build and pass
-  `twine check`; both install cleanly; 1,299 tests pass; CI and the full release gate are
-  green on the supported Python and operating-system matrix. DEC-010 authorizes staged
-  OIDC publishing, requires a successful TestPyPI installation before tagging, and
-  supersedes DEC-008's obsolete manual-credential clauses. No release tag exists yet.
+- **ChartworkAI 0.1.0 published (T-020)** — TestPyPI proof and clean installation passed
+  for commit `8938896`; tag `chartworkai-v0.1.0` points to that exact commit. The
+  protected OIDC workflow repeated provenance, Linux/macOS/Windows, package, secret,
+  and personal-identifier gates before publishing to PyPI. A fresh production
+  `pip install chartworkai==0.1.0` and `chartworkai init` smoke test passed. The public
+  GitHub release carries the changelog notes.
 
-**Next:** merge the release-process corrections to `main`, run the manual TestPyPI
-workflow, and install `chartworkai==0.1.0` from TestPyPI. Pending publishers now match
-the workflow on both indexes. Only after the TestPyPI proof succeeds may the current
-tip of `main` be tagged for PyPI. Then make `framework.json` authoritative (T-016) and
-build the CrewAI adapter (T-018).
+**Next:** make `framework.json` authoritative (T-016), then build the CrewAI adapter
+(T-018).
 
 ---
 
