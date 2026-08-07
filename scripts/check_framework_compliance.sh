@@ -1,6 +1,15 @@
 #!/usr/bin/env sh
 set -eu
 
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+if [ ! -f "$SCRIPT_DIR/framework_config.sh" ]; then
+  printf 'error: generated framework configuration is missing: %s\n' \
+    "$SCRIPT_DIR/framework_config.sh" >&2
+  exit 1
+fi
+# shellcheck source=framework_config.sh
+. "$SCRIPT_DIR/framework_config.sh"
+
 case "${1:-}" in
   --self-audit|"") PROJECT_ROOT="." ;;
   *) PROJECT_ROOT="$1" ;;
@@ -21,6 +30,7 @@ failures=0
 DATA_PROFILE=1
 PROFILE_KNOWN=1
 project_profile=""
+profile_rule="$CW_DEFAULT_PROFILE"
 
 # Framework identity is ASSERTED by the caller, never inferred from the audited
 # tree. It relaxes the placeholder, scaffold and assistant-name checks, and any
@@ -76,12 +86,12 @@ count_markdown_files() {
 }
 
 count_decision_files() {
-  dir="docs/decisions"
+  dir="$CW_DECISION_DIRECTORY"
   if [ ! -d "$PROJECT_ROOT/$dir" ]; then
     printf '0'
     return
   fi
-  find "$PROJECT_ROOT/$dir" -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | wc -l | tr -d ' '
+  find "$PROJECT_ROOT/$dir" -maxdepth 1 -type f -name "$CW_DECISION_GLOB" ! -name "$CW_DECISION_EXCLUDE" | wc -l | tr -d ' '
 }
 
 check_duplicate_h2() {
@@ -108,7 +118,7 @@ check_no_placeholders() {
     # splits on whitespace, so a project path containing a space made find search
     # nonexistent paths, print nothing, and the check report a false PASS.
     set --
-    for t in PROJECT_CHARTER.md AGENTS.md STATUS.md TASKS.md; do
+    for t in $(cw_core_operating_files); do
       [ -f "$PROJECT_ROOT/$t" ] && set -- "$@" "$PROJECT_ROOT/$t"
     done
     [ -d "$PROJECT_ROOT/docs" ] && set -- "$@" "$PROJECT_ROOT/docs"
@@ -193,7 +203,7 @@ check_phase_matches_charter() {
 
 check_decisions_linked_from_charter() {
   charter_file="$PROJECT_ROOT/PROJECT_CHARTER.md"
-  decision_dir="$PROJECT_ROOT/docs/decisions"
+  decision_dir="$PROJECT_ROOT/$CW_DECISION_DIRECTORY"
   if [ ! -f "$charter_file" ] || [ ! -d "$decision_dir" ]; then
     return
   fi
@@ -203,12 +213,12 @@ check_decisions_linked_from_charter() {
   for file in "$decision_dir"/*.md; do
     [ -e "$file" ] || continue
     base="$(basename "$file")"
-    [ "$base" = "README.md" ] && continue
+    cw_decision_excluded "$base" && continue
     found=$((found + 1))
-    if grep -q "docs/decisions/$base" "$charter_file"; then
+    if grep -q "$CW_DECISION_DIRECTORY/$base" "$charter_file"; then
       :
     else
-      fail "decision file docs/decisions/$base is not linked from PROJECT_CHARTER.md"
+      fail "decision file $CW_DECISION_DIRECTORY/$base is not linked from PROJECT_CHARTER.md"
       missing=$((missing + 1))
     fi
   done
@@ -267,7 +277,7 @@ check_living_doc_decay() {
 }
 
 check_decision_log_rules() {
-  decision_dir="$PROJECT_ROOT/docs/decisions"
+  decision_dir="$PROJECT_ROOT/$CW_DECISION_DIRECTORY"
   plan_file="$PROJECT_ROOT/docs/phase_plan.md"
   
   if [ ! -d "$decision_dir" ]; then
@@ -279,7 +289,7 @@ check_decision_log_rules() {
   for file in "$decision_dir"/*.md; do
     [ -e "$file" ] || continue
     base="$(basename "$file")"
-    [ "$base" = "README.md" ] && continue
+    cw_decision_excluded "$base" && continue
     # Patterns like 20260607_DEC003_phase1_profiles.md
     if ! printf '%s' "$base" | grep -Eq '^[0-9]{8}_(DEC|DQ|SC|MD|dec|dq|sc|md)[0-9]{3}_[a-zA-Z0-9_-]+\.md$'; then
       fail "decision file $base does not match pattern YYYYMMDD_<namespace>###_<title>.md (valid namespaces: DEC, DQ, SC, MD)"
@@ -294,7 +304,7 @@ check_decision_log_rules() {
   if [ -f "$plan_file" ]; then
     current_phase="$(sed -n 's/.*Current phase:.*Phase[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$plan_file" | head -n 1 || true)"
     if [ -n "$current_phase" ] && [ "$current_phase" -ge 3 ]; then
-      decision_count="$(find "$decision_dir" -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | wc -l | tr -d ' ')"
+      decision_count="$(count_decision_files)"
       if [ "$decision_count" -lt 3 ]; then
         info "WARNING: Sparse decision log. Found only $decision_count decisions for Phase $current_phase. Consider capturing more context."
       fi
@@ -322,19 +332,24 @@ check_no_leftover_scaffolds() {
 detect_profile_settings() {
   # Only ever called once confinement has passed, so this read cannot follow a link
   # out of the project. The profile is the first token after a "Profile:" line;
-  # if absent, default to data-science (backward-compatible).
+  # if absent, use the manifest default (backward-compatible).
   charter_for_profile="$PROJECT_ROOT/PROJECT_CHARTER.md"
   [ -f "$charter_for_profile" ] || return 0
   project_profile="$(sed -n 's/.*Profile:[*[:space:]]*\([A-Za-z0-9_-][A-Za-z0-9_-]*\).*/\1/p' "$charter_for_profile" | head -n 1)"
-  case "$project_profile" in
-    data-science|database|competition-ml) DATA_PROFILE=1 ;;
-    software-app|investigation|deployed-service) DATA_PROFILE=0 ;;
-    "") DATA_PROFILE=1 ;;
-    # An unrecognised value is a typo. Treat it as a data profile — the strictest
-    # reading — so a misspelling cannot be used to drop the data-contract
-    # requirement, and report it separately as a failure.
-    *) DATA_PROFILE=1; PROFILE_KNOWN=0 ;;
-  esac
+  if [ -z "$project_profile" ]; then
+    project_profile="$CW_DEFAULT_PROFILE"
+  elif ! cw_profile_known "$project_profile"; then
+    DATA_PROFILE=1
+    PROFILE_KNOWN=0
+    profile_rule="$CW_STRICT_PROFILE"
+    return
+  fi
+  profile_rule="$project_profile"
+  if cw_profile_requires_data_contracts "$project_profile"; then
+    DATA_PROFILE=1
+  else
+    DATA_PROFILE=0
+  fi
 }
 
 check_no_escaping_symlinks() {
@@ -354,7 +369,7 @@ check_no_escaping_symlinks() {
     # Newline-separated, iterated with `read`: word-splitting dropped any path
     # containing a space, which is exactly the path an attacker would choose.
     link_list="$(
-      for core in PROJECT_CHARTER.md AGENTS.md STATUS.md TASKS.md; do
+      for core in $(cw_core_operating_files); do
         [ -L "$PROJECT_ROOT/$core" ] && printf '%s\n' "$PROJECT_ROOT/$core"
       done
       if [ -L "$PROJECT_ROOT/docs" ]; then
@@ -398,7 +413,7 @@ EOF
 
 check_tool_leaks() {
   leaks=0
-  for t in PROJECT_CHARTER.md AGENTS.md STATUS.md TASKS.md; do
+  for t in $(cw_core_operating_files); do
     file="$PROJECT_ROOT/$t"
     [ -f "$file" ] || continue
     
@@ -436,55 +451,41 @@ check_no_escaping_symlinks
 detect_profile_settings
 
 if [ "$PROFILE_KNOWN" -eq 0 ]; then
-  fail "unknown profile '$project_profile' in PROJECT_CHARTER.md — expected one of data-science, software-app, database, competition-ml, investigation, deployed-service. Treating it as a data profile until fixed."
+  fail "unknown profile '$project_profile' in PROJECT_CHARTER.md — expected one of $CW_KNOWN_PROFILES. Treating it as a data profile until fixed."
 else
   pass "profile is recognised"
 fi
 
-check_file "PROJECT_CHARTER.md"
-check_file "AGENTS.md"
-check_file "docs/phase_plan.md"
-check_file "STATUS.md"
-check_file "TASKS.md"
+for required_file in $(cw_required_files) $(cw_profile_required_files "$profile_rule"); do
+  check_file "$required_file"
+done
+for required_dir in $(cw_required_directories) $(cw_profile_required_directories "$profile_rule"); do
+  check_dir "$required_dir"
+done
 
-check_dir "docs/decisions"
-check_file "docs/decisions/README.md"
 decision_count="$(count_decision_files)"
-if [ "$decision_count" -ge 1 ]; then
+if [ "$decision_count" -ge "$CW_DECISION_MINIMUM" ]; then
   pass "docs/decisions contains at least one seed decision"
 else
   fail "docs/decisions needs at least one seed decision besides README.md"
 fi
 
-check_dir "docs/handoffs"
-handoff_count="$(count_markdown_files "docs/handoffs")"
-if [ -f "$PROJECT_ROOT/docs/handoffs/README.md" ] || [ "$handoff_count" -ge 1 ]; then
+handoff_count="$(count_markdown_files "$CW_HANDOFF_DIRECTORY")"
+if [ "$handoff_count" -ge "$CW_HANDOFF_MINIMUM" ]; then
   pass "docs/handoffs has README.md or at least one handoff note"
 else
   fail "docs/handoffs needs README.md or at least one handoff note"
 fi
 
-check_dir "docs/domain"
-check_file "docs/domain/README.md"
-
-if [ "$DATA_PROFILE" -eq 1 ]; then
-  check_file "docs/data/data_dictionary.md"
-  check_file "docs/data/lineage.md"
-  check_file "docs/data/watchlist.md"
-else
+if [ "$DATA_PROFILE" -eq 0 ]; then
   info "Profile is non-data: docs/data/ contract triad not required (skipped)."
 fi
 
 info ""
 info "Checking stronger operating rules"
-check_duplicate_h2 "PROJECT_CHARTER.md"
-check_duplicate_h2 "AGENTS.md"
-check_duplicate_h2 "docs/phase_plan.md"
-check_duplicate_h2 "STATUS.md"
-check_duplicate_h2 "TASKS.md"
-check_duplicate_h2 "docs/data/data_dictionary.md"
-check_duplicate_h2 "docs/data/lineage.md"
-check_duplicate_h2 "docs/data/watchlist.md"
+for living_document in $(cw_living_documents); do
+  check_duplicate_h2 "$living_document"
+done
 check_no_placeholders
 check_tasks_shape
 check_phase_matches_charter

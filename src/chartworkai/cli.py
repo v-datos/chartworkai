@@ -19,7 +19,8 @@ from pathlib import Path
 from typing import List, Optional
 
 from chartworkai import __version__
-from chartworkai.checks import KNOWN_PROFILES, run_checks
+from chartworkai.checks import run_checks
+from chartworkai.manifest import DEFAULT_PROFILE, KNOWN_PROFILES
 from chartworkai.models import Report, Status
 from chartworkai.safety import UnsafePathError
 
@@ -29,7 +30,7 @@ _GLYPH = {Status.PASS: "PASS", Status.FAIL: "FAIL", Status.WARN: "WARN"}
 def _render_text(report: Report, strict: bool, quiet: bool) -> str:
     lines: List[str] = []
     lines.append(f"ChartworkAI {__version__} — checking: {report.project_root}")
-    profile = report.profile or "data-science (default)"
+    profile = report.profile or f"{DEFAULT_PROFILE} (default)"
     scope = "framework repo" if report.framework_repo else "project"
     lines.append(f"Profile: {profile}  ({scope})")
     lines.append("")
@@ -160,12 +161,12 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--slug", default=None, help="Machine-friendly slug (derived if omitted).")
     init.add_argument(
         "--profile",
-        default="data-science",
+        default=DEFAULT_PROFILE,
         choices=list(KNOWN_PROFILES),
         metavar="PROFILE",
         help=(
             "Deliverable type, one of: " + ", ".join(KNOWN_PROFILES) + ". "
-            "Non-data profiles skip the docs/data/ triad. (default: data-science)"
+            f"Non-data profiles skip their profile-specific artifacts. (default: {DEFAULT_PROFILE})"
         ),
     )
     init.add_argument(

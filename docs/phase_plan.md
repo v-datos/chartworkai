@@ -5,14 +5,14 @@
 
 **Last updated:** 2026-08-06
 **Current phase:** Phase 4 — ChartworkAI package & launch
-**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 ships the product as software: `chartworkai` 0.1.0 is live on PyPI after staged OIDC publication, and the CLI covers `init`, `check`, `plan`, `state`, and `mcp`, with framework assets packaged in the wheel and shell/Python scaffold parity enforced in CI. Next, make `framework.json` authoritative (T-016), then build the CrewAI adapter (T-018).
+**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 ships the product as software: `chartworkai` 0.1.0 is live on PyPI, and framework contract 1.1.0 now drives Python, generated POSIX shell rules, and profile tables from `framework.json`. The CLI covers `init`, `check`, `plan`, `state`, and `mcp`, with packaged assets and shell/Python scaffold parity enforced in CI. Next dispatch: build the CrewAI adapter (T-018).
 
 ## Active agents
 
 | Agent | Status | Current task | Blocking on |
 |---|---|---|---|
 | Orchestrator | Idle | Available for assignment | — |
-| Framework Architect | Active | T-016 — Make `framework.json` authoritative | — |
+| Framework Architect | Idle | Available for assignment | — |
 | Template & Docs Engineer | Idle | Available for assignment | — |
 | Dogfood & Compliance QA | Idle | Available for assignment | — |
 | Audit & Research Analyst | Standby | Available for assignment | — |
@@ -24,10 +24,10 @@
 - [x] Repositioning and generalization to drop assistant-exclusive framing (T-012).
 - [x] Product model and go-to-market strategy defined (DEC-004) (T-012).
 - [x] ChartworkAI 0.1.0 published through staged OIDC after TestPyPI proof (T-020).
+- [x] `framework.json` drives runtime, shell projections, and profile tables (T-016).
 
 ## Dispatch queue (next up)
 
-- T-016 — Make `framework.json` authoritative
 - T-018 — CrewAI adapter (`chartworkai export/ingest crewai`)
 - T-019 — Docs site + landing page
 - T-021 — Paid concierge beta with three design partners
@@ -40,6 +40,7 @@
 
 | ID | Date | Topic | Status | Authority |
 |---|---|---|---|---|
+| [DEC-011](decisions/20260806_DEC011_authoritative_manifest.md) | 2026-08-06 | Make framework.json the executable contract | Decided | Framework Architect / Dogfood & Compliance QA |
 | [DEC-010](decisions/20260806_DEC010_trusted_publishing.md) | 2026-08-06 | Publish through staged OIDC workflows | Decided | Orchestrator / Dogfood & Compliance QA |
 | [DEC-009](decisions/20260805_DEC009_release_audit_remediation.md) | 2026-08-05 | Three pre-release audits gate the first publication | Decided | Orchestrator / Dogfood & Compliance QA |
 | [DEC-008](decisions/20260805_DEC008_versioning_scheme.md) | 2026-08-05 | Version the framework and the package separately, with prefixed tags | Decided | Orchestrator |

@@ -1,11 +1,14 @@
 {
   "name": "chartworkai",
-  "version": "1.0.0",
+  "schema_version": 1,
+  "version": "1.1.0",
   "description": "The governance layer for agentic work \u2014 repo-native charter, decisions, handoffs and phase gates for long-running projects.",
   "default_profile": "data-science",
   "profiles": {
     "data-science": {
       "description": "Quantitative analysis / research pipeline producing reproducible figures, tables, and a report.",
+      "deliverable": "reproducible analysis / report",
+      "verification_summary": "byte-identical rebuild from raw",
       "requires_data_contracts": true,
       "reproducibility": "byte-identical rebuild from raw via the project's verify command",
       "required_files": [
@@ -15,6 +18,16 @@
       ],
       "required_directories": [
         "docs/data"
+      ],
+      "scaffold_directories": [
+        "docs/data",
+        "data/raw",
+        "data/external",
+        "data/interim",
+        "data/processed",
+        "reports/figures",
+        "reports/tables",
+        "reports/draft"
       ],
       "default_roles": [
         "Orchestrator",
@@ -27,10 +40,13 @@
     },
     "software-app": {
       "description": "Software or web/app project whose deliverable is running, deployable software.",
+      "deliverable": "running / deployable software",
+      "verification_summary": "build + tests pass",
       "requires_data_contracts": false,
       "reproducibility": "build + automated tests pass via the project's verify command (e.g. a build + test target)",
       "required_files": [],
       "required_directories": [],
+      "scaffold_directories": [],
       "default_roles": [
         "Orchestrator",
         "Domain Expert",
@@ -43,6 +59,8 @@
     },
     "database": {
       "description": "Curated database/dataset as the deliverable.",
+      "deliverable": "a curated dataset",
+      "verification_summary": "deterministic rebuild + quality baselines",
       "requires_data_contracts": true,
       "reproducibility": "deterministic rebuild from raw meeting stated quality baselines (row counts, key uniqueness, referential integrity) via the verify command",
       "required_files": [
@@ -52,6 +70,16 @@
       ],
       "required_directories": [
         "docs/data"
+      ],
+      "scaffold_directories": [
+        "docs/data",
+        "data/raw",
+        "data/external",
+        "data/interim",
+        "data/processed",
+        "reports/figures",
+        "reports/tables",
+        "reports/draft"
       ],
       "default_roles": [
         "Orchestrator",
@@ -64,6 +92,8 @@
     },
     "competition-ml": {
       "description": "Leaderboard/competition ML; deliverable is a scored submission + experiment log.",
+      "deliverable": "a scored submission",
+      "verification_summary": "submission regenerates from a recorded run",
       "requires_data_contracts": true,
       "reproducibility": "the submitted artifact regenerates from a recorded run (fixed seeds, recoverable split, or a cloud run/job URI + image digest)",
       "required_files": [
@@ -73,6 +103,16 @@
       ],
       "required_directories": [
         "docs/data"
+      ],
+      "scaffold_directories": [
+        "docs/data",
+        "data/raw",
+        "data/external",
+        "data/interim",
+        "data/processed",
+        "reports/figures",
+        "reports/tables",
+        "reports/draft"
       ],
       "default_roles": [
         "Orchestrator",
@@ -88,10 +128,13 @@
     },
     "investigation": {
       "description": "Investigative / knowledge-base; deliverable is an evidence-backed dataset or report.",
+      "deliverable": "evidence-backed findings",
+      "verification_summary": "every claim traces to an archived source at an evidence tier",
       "requires_data_contracts": false,
       "reproducibility": "every published claim traces to an archived source at a stated evidence tier",
       "required_files": [],
       "required_directories": [],
+      "scaffold_directories": [],
       "default_roles": [
         "Orchestrator",
         "Domain Expert",
@@ -106,10 +149,13 @@
     },
     "deployed-service": {
       "description": "A deployed service/app with cloud infrastructure.",
+      "deliverable": "a deployed service + infrastructure",
+      "verification_summary": "config + image digest + job URI trace a release",
       "requires_data_contracts": false,
       "reproducibility": "config + image digest + job/run URI trace a live release back to a commit, with a tested rollback",
       "required_files": [],
       "required_directories": [],
+      "scaffold_directories": [],
       "default_roles": [
         "Orchestrator",
         "Domain Expert",
@@ -128,13 +174,76 @@
     "STATUS.md",
     "TASKS.md",
     "docs/decisions/README.md",
-    "docs/handoffs/README.md",
     "docs/domain/README.md"
   ],
   "required_directories": [
     "docs/decisions",
     "docs/handoffs",
     "docs/domain"
+  ],
+  "presence_rules": {
+    "seed_decision": {
+      "directory": "docs/decisions",
+      "glob": "*.md",
+      "exclude": ["README.md"],
+      "minimum": 1
+    },
+    "handoff": {
+      "directory": "docs/handoffs",
+      "glob": "*.md",
+      "exclude": [],
+      "minimum": 1
+    }
+  },
+  "scaffold_directories": [
+    "docs/decisions",
+    "docs/handoffs",
+    "docs/domain",
+    "docs/reproducibility",
+    "src",
+    "tests",
+    "scripts"
+  ],
+  "managed_files": [
+    "PROJECT_CHARTER.md",
+    "AGENTS.md",
+    "STATUS.md",
+    "TASKS.md",
+    "docs/phase_plan.md",
+    "docs/style_guide.md",
+    "docs/decisions/README.md",
+    "docs/handoffs/README.md",
+    "docs/domain/README.md",
+    "docs/data/data_dictionary.md",
+    "docs/data/lineage.md",
+    "docs/data/watchlist.md"
+  ],
+  "core_operating_files": [
+    "PROJECT_CHARTER.md",
+    "AGENTS.md",
+    "STATUS.md",
+    "TASKS.md"
+  ],
+  "living_documents": [
+    "PROJECT_CHARTER.md",
+    "AGENTS.md",
+    "docs/phase_plan.md",
+    "STATUS.md",
+    "TASKS.md",
+    "docs/data/data_dictionary.md",
+    "docs/data/lineage.md",
+    "docs/data/watchlist.md"
+  ],
+  "reference_directories": [
+    "templates",
+    "agents",
+    "prompts",
+    "extensions"
+  ],
+  "scaffold_support_files": [
+    "scripts/check_framework_compliance.sh",
+    "scripts/generate_phase_plan.sh",
+    "scripts/framework_config.sh"
   ],
   "templates": [
     "templates/PROJECT_CHARTER.template.md",
@@ -161,7 +270,9 @@
   "scripts": [
     "scripts/init_project_from_framework.sh",
     "scripts/check_framework_compliance.sh",
-    "scripts/generate_phase_plan.sh"
+    "scripts/generate_phase_plan.sh",
+    "scripts/sync_framework_manifest.py",
+    "scripts/framework_config.sh"
   ],
   "extensions": [
     "extensions/external-tracker-sync",

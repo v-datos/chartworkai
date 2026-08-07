@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`framework.json` is now authoritative (T-016 / DEC-011).** Python loads profile,
+  required-artifact, and scaffold-layout rules directly from the packaged manifest.
+  POSIX shell and profile documentation use generated projections, with drift rejected
+  by tests and CI. The framework contract version is now 1.1.0; the Python package
+  version remains independent.
+
 ## [chartworkai 0.1.0] - 2026-08-05
 
 First release of the Python package. The framework's Markdown contracts remain at 1.0.0

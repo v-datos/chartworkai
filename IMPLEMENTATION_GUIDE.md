@@ -19,14 +19,16 @@ The loop, in one sentence: **read state → propose ONE dispatch → the agent p
 
 The profile shapes the project. Declare it once; it decides which artifacts are required and what "reproducible" means.
 
-| Profile | Use it for | Data contracts? | "Verify" means | Status |
-|---|---|---|---|---|
-| `data-science` | analysis / research producing figures + a report | required | byte-identical rebuild from raw | ✅ |
-| `software-app` | a web/app/service/CLI/library | not required | build + tests pass | ✅ |
-| `database` | a curated dataset as the deliverable | required | deterministic rebuild + quality baselines | ✅ |
-| `competition-ml` | Kaggle / leaderboard ML | required | submission regenerates from a recorded run | ✅ |
-| `investigation` | journalism / knowledge base | not required | every claim → archived source at evidence tier | ✅ |
-| `deployed-service` | a deployed app + infra | not required | config + image digest + job URI → traceable release | ✅ |
+<!-- BEGIN GENERATED PROFILE TABLE -->
+| Profile | Deliverable | Data contracts | "Reproducible" means |
+|---|---|---|---|
+| [`data-science`](profiles/data-science.md) | reproducible analysis / report | required | byte-identical rebuild from raw |
+| [`software-app`](profiles/software-app.md) | running / deployable software | not required | build + tests pass |
+| [`database`](profiles/database.md) | a curated dataset | required | deterministic rebuild + quality baselines |
+| [`competition-ml`](profiles/competition-ml.md) | a scored submission | required | submission regenerates from a recorded run |
+| [`investigation`](profiles/investigation.md) | evidence-backed findings | not required | every claim traces to an archived source at an evidence tier |
+| [`deployed-service`](profiles/deployed-service.md) | a deployed service + infrastructure | not required | config + image digest + job URI trace a release |
+<!-- END GENERATED PROFILE TABLE -->
 
 Each profile has a spec in [`profiles/`](profiles/) covering its required artifacts, verify contract, default roles and the real implementations it is drawn from.
 

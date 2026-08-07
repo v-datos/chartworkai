@@ -56,6 +56,7 @@ test into a temp directory:
 ```bash
 sh -n scripts/check_framework_compliance.sh
 sh -n scripts/init_project_from_framework.sh
+python scripts/sync_framework_manifest.py --check
 scripts/init_project_from_framework.sh /tmp/cw-example "Example Project" example_project
 scripts/check_framework_compliance.sh /tmp/cw-example
 ```
@@ -111,8 +112,10 @@ An unlinked decision file is a compliance failure.
   your change and passes after it.
 - **Update `CHANGELOG.md`.** Add an entry under `## [Unreleased]` in the appropriate
   Added / Changed / Fixed / Removed group.
-- **Keep `framework.json` current** if you add, move, or remove templates, prompts, scripts, or
-  extensions, or if the version changes.
+- **Change framework rules in `framework.json` first.** If you add or change profiles,
+  required artifacts, layout, templates, prompts, scripts, or extensions, run
+  `python scripts/sync_framework_manifest.py` and commit its shell/documentation projections.
+  `python scripts/sync_framework_manifest.py --check` must pass.
 - **Fill in the PR template** (`.github/PULL_REQUEST_TEMPLATE.md`), including the verification
   commands you actually ran.
 - Write commit subjects in the imperative mood and keep them under ~72 characters.

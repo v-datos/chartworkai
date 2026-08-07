@@ -37,8 +37,14 @@ import pytest
 from conftest import REPO_ROOT, findings, report_for
 
 from chartworkai import assets
-from chartworkai.assets import REFERENCE_DIRS, SHELL_SCRIPTS, asset_root, template_path
+from chartworkai.assets import asset_root, template_path
 from chartworkai.checks import DATA_PROFILES, DECISION_NAME_RE
+from chartworkai.manifest import (
+    REFERENCE_DIRECTORIES as REFERENCE_DIRS,
+)
+from chartworkai.manifest import (
+    SCAFFOLD_SUPPORT_FILES as SHELL_SCRIPTS,
+)
 from chartworkai.models import Status
 from chartworkai.scaffold import BASE_DIRS, DATA_DIRS, init_project, slugify
 
@@ -795,6 +801,7 @@ class TestAssetRoot:
         root = asset_root()
         assert (root / "templates").is_dir()
         assert (root / "agents").is_dir()
+        assert (root / "framework.json").is_file()
 
     def test_asset_root_holds_every_reference_directory(self):
         root = asset_root()
@@ -828,6 +835,7 @@ class TestAssetRoot:
         winner = tmp_path / "winner"
         (winner / "templates").mkdir(parents=True)
         (winner / "agents").mkdir(parents=True)
+        (winner / "framework.json").write_text("{}\n", encoding="utf-8")
         monkeypatch.setattr(assets, "_candidates", lambda: [tmp_path, winner, REPO_ROOT])
         assert assets.asset_root() == winner
 
