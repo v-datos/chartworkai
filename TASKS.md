@@ -1,17 +1,15 @@
 # TASKS — ChartworkAI
 
-Last updated: 2026-08-07
+Last updated: 2026-08-09
 
 ## In Progress
 
-## Queued (Phase 4 — ChartworkAI package & launch)
-
-- [ ] **T-018 — CrewAI adapter (`chartworkai export/ingest crewai`)**
-  Owner: Integrations Engineer
-  Done criteria: CrewAI run IDs, traces, and outputs recorded as handoffs/decisions in the repo
 - [ ] **T-019 — Docs site + landing page**
   Owner: Docs & GTM Engineer
   Done criteria: published site with the implementation guide as the front door
+
+## Queued (Phase 4 — ChartworkAI package & launch)
+
 - [ ] **T-021 — Paid concierge beta with three design partners**
   Owner: Orchestrator (with the user)
   Done criteria: three external installs, measured setup time, and permission to publish one case study
@@ -24,6 +22,13 @@ Last updated: 2026-08-07
 
 ## Done
 
+- [x] **T-018 — CrewAI governance adapter (`chartworkai-crewai`)** — 2026-08-07 —
+  Findings: independent `chartworkai-crewai` 0.1.0 implements schema-v1 redacted immutable
+  manifests, sync/async execution capture, explicit handoffs, and no automatic decisions. CrewAI
+  remains user-supplied under the CVE embargo. Final QA passed 1,374 core and 75 adapter tests;
+  strict self-audit reported 33/0/0; all four artifacts passed strict Twine validation; offline
+  CrewAI 1.15.10 and 1.15.13 tests passed; and the security re-audit found no blockers. Supported
+  operating-system boundary: Linux and macOS.
 - [x] **T-026 — Publish ChartworkAI 0.2.0 to PyPI + GitHub** — 2026-08-07 —
   Findings: TestPyPI workflow
   https://github.com/v-datos/chartworkai/actions/runs/31185596989 and a clean exact-version

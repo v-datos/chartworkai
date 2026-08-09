@@ -106,7 +106,7 @@ jobs:
 
           BANNED = re.compile(
               r"(^|/)("
-              r"outputs|\.claude|\.venv|venv|\.idea|\.vscode|\.git|\.pytest_cache|"
+              r"outputs|integrations|\.claude|\.venv|venv|\.idea|\.vscode|\.git|\.pytest_cache|"
               r"\.ruff_cache|\.mypy_cache|__pycache__|node_modules|htmlcov"
               r")/"
               r"|(^|/)("
@@ -233,6 +233,259 @@ jobs:
             exit 1
           fi
 
+  crewai-adapter:
+    name: CrewAI adapter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install deterministic test and build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" build hatchling twine
+          python -m pip install --no-deps -e integrations/crewai
+
+      - name: Run runtime-independent adapter tests
+        run: python -m pytest -q integrations/crewai/tests
+
+      - name: Lint adapter
+        run: |
+          ruff check integrations/crewai/src integrations/crewai/tests
+          ruff format --check integrations/crewai/src
+
+      - name: Build adapter sdist and wheel
+        run: python -m build integrations/crewai --outdir integrations/crewai/dist
+
+      - name: Validate adapter distribution metadata
+        run: twine check --strict integrations/crewai/dist/*
+
+      - name: Validate adapter wheel contract and packaged schema
+        run: |
+          python - <<'PY'
+          import email
+          import json
+          import pathlib
+          import tarfile
+          import zipfile
+          from packaging.requirements import Requirement
+          from packaging.specifiers import SpecifierSet
+
+          wheels = list(pathlib.Path("integrations/crewai/dist").glob("*.whl"))
+          sdists = list(pathlib.Path("integrations/crewai/dist").glob("*.tar.gz"))
+          if len(wheels) != 1:
+              raise SystemExit(f"expected one adapter wheel, found {len(wheels)}")
+          if len(sdists) != 1:
+              raise SystemExit(f"expected one adapter sdist, found {len(sdists)}")
+
+          with tarfile.open(sdists[0]) as archive:
+              sdist_names = archive.getnames()
+              pkg_info_names = [name for name in sdist_names if name.endswith("/PKG-INFO")]
+              if len(pkg_info_names) != 1:
+                  raise SystemExit("adapter sdist must contain exactly one PKG-INFO file")
+              pkg_info_file = archive.extractfile(pkg_info_names[0])
+              if pkg_info_file is None:
+                  raise SystemExit("adapter sdist PKG-INFO could not be read")
+              sdist_metadata = email.message_from_bytes(pkg_info_file.read())
+          if not any(name.endswith("/README.md") for name in sdist_names):
+              raise SystemExit("adapter sdist must contain README.md")
+
+          with zipfile.ZipFile(wheels[0]) as archive:
+              names = archive.namelist()
+              metadata_names = [name for name in names if name.endswith(".dist-info/METADATA")]
+              schema_names = [
+                  name for name in names
+                  if name.endswith("chartworkai_crewai/schemas/run-manifest-v1.schema.json")
+              ]
+              if len(metadata_names) != 1:
+                  raise SystemExit("adapter wheel must contain exactly one METADATA file")
+              if len(schema_names) != 1:
+                  raise SystemExit("adapter wheel must contain the schema-v1 resource")
+              if any(name.startswith("chartworkai/") for name in names):
+                  raise SystemExit("adapter wheel must not contain the ChartworkAI core package")
+
+              wheel_metadata = email.message_from_bytes(archive.read(metadata_names[0]))
+              schema = json.loads(archive.read(schema_names[0]))
+
+          expected = {
+              "chartworkai": SpecifierSet(">=0.2,<0.3"),
+          }
+          for artifact, metadata in (
+              ("wheel", wheel_metadata),
+              ("sdist", sdist_metadata),
+          ):
+              if metadata["Name"] != "chartworkai-crewai":
+                  raise SystemExit(f"unexpected {artifact} package name: {metadata['Name']}")
+              if metadata["Version"] != "0.1.0":
+                  raise SystemExit(f"unexpected {artifact} version: {metadata['Version']}")
+              if metadata["Description-Content-Type"] != "text/markdown":
+                  raise SystemExit(
+                      f"{artifact} metadata must use README.md as its long description"
+                  )
+              if SpecifierSet(metadata["Requires-Python"]) != SpecifierSet(">=3.10,<3.14"):
+                  raise SystemExit(
+                      f"unexpected {artifact} Python range: {metadata['Requires-Python']}"
+                  )
+
+              requirements = {
+                  Requirement(value).name: Requirement(value).specifier
+                  for value in metadata.get_all("Requires-Dist", [])
+              }
+              if requirements != expected:
+                  raise SystemExit(
+                      f"unexpected {artifact} runtime requirements: {requirements}"
+                  )
+              forbidden = {"crewai", "chromadb"} & set(requirements)
+              if forbidden:
+                  raise SystemExit(
+                      f"forbidden {artifact} dependencies: {sorted(forbidden)}"
+                  )
+          if schema.get("properties", {}).get("schema_version", {}).get("const") != 1:
+              raise SystemExit("packaged run-manifest schema is not schema v1")
+
+          print("adapter wheel/sdist metadata and packaged schema are valid")
+          PY
+
+  crewai-compatibility:
+    name: CrewAI compatibility (py${{ matrix.python-version }} / ${{ matrix.crewai_spec }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        crewai_spec:
+          - "crewai==1.15.10"
+          - "crewai>=1.15.10,<1.16"
+    env:
+      OTEL_SDK_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install the explicit CrewAI compatibility target
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install --no-deps -e integrations/crewai
+          python -m pip install "${{ matrix.crewai_spec }}"
+          python -m pip check
+
+      - name: Run deterministic offline runtime contract
+        run: |
+          python - <<'PY'
+          import asyncio
+          import json
+          import socket
+          import tempfile
+          from importlib.metadata import version
+          from pathlib import Path
+
+          from packaging.specifiers import SpecifierSet
+          from packaging.version import Version
+
+          def deny_network(*_args, **_kwargs):
+              raise AssertionError("CrewAI compatibility smoke attempted network access")
+
+          socket.socket.connect = deny_network
+
+          from crewai import Crew
+          from crewai.crews.crew_output import CrewOutput
+
+          from chartworkai_crewai import CrewAIAdapter
+
+          class DeterministicCrew(Crew):
+              def kickoff(self, **kwargs):
+                  assert kwargs["inputs"] == {"topic": "offline-smoke"}
+                  return CrewOutput(raw="deterministic sync output")
+
+              async def akickoff(self, **kwargs):
+                  assert kwargs["inputs"] == {"topic": "offline-smoke"}
+                  return CrewOutput(raw="deterministic async output")
+
+          runtime_version = version("crewai")
+          if Version(runtime_version) not in SpecifierSet(">=1.15.10,<1.16"):
+              raise SystemExit(f"CrewAI {runtime_version} is outside the supported range")
+
+          with tempfile.TemporaryDirectory() as directory:
+              root = Path(directory)
+              (root / "docs").mkdir()
+              (root / "PROJECT_CHARTER.md").write_text(
+                  "# Project Charter - CrewAI Compatibility\n\n**Profile:** generic\n",
+                  encoding="utf-8",
+              )
+              (root / "docs" / "phase_plan.md").write_text(
+                  "# Phase Plan\n\n**Current phase:** Phase 4 - integrations\n",
+                  encoding="utf-8",
+              )
+
+              crew = DeterministicCrew.model_construct(agents=[], tasks=[])
+              adapter = CrewAIAdapter(root)
+              sync_record = adapter.kickoff(
+                  crew,
+                  inputs={"topic": "offline-smoke"},
+              )
+              async_record = asyncio.run(
+                  adapter.akickoff(
+                      crew,
+                      inputs={"topic": "offline-smoke"},
+                  )
+              )
+
+              for record, api in (
+                  (sync_record, "kickoff"),
+                  (async_record, "akickoff"),
+              ):
+                  manifest = json.loads(
+                      (root / record.manifest_path).read_text(encoding="utf-8")
+                  )
+                  if not isinstance(record.output, CrewOutput):
+                      raise AssertionError("adapter did not preserve the CrewOutput")
+                  if manifest["runtime"] != {
+                      "name": "crewai",
+                      "version": runtime_version,
+                      "api": api,
+                  }:
+                      raise AssertionError(f"unexpected runtime record: {manifest['runtime']}")
+                  if manifest["execution"]["status"] != "succeeded":
+                      raise AssertionError("offline execution was not recorded as successful")
+                  if manifest["execution"]["input_keys"] != ["topic"]:
+                      raise AssertionError("input key metadata was not recorded")
+                  if manifest["capture"]["mode"] != "metadata":
+                      raise AssertionError("metadata must remain the default capture mode")
+                  if manifest["output"] is not None:
+                      raise AssertionError("metadata mode persisted CrewAI output")
+
+          print(f"offline CrewAI {runtime_version} sync/async contract passed")
+          PY
+
+  documentation:
+    name: documentation site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install documentation toolchain
+        run: python -m pip install --upgrade pip && python -m pip install -r website/requirements.txt
+
+      - name: Generate canonical documentation sources
+        run: python website/build_site.py
+
+      - name: Build the site strictly
+        run: mkdocs build --strict
+
+      - name: Validate HTML, links, assets, search, and front-door content
+        run: python website/check_site.py site
+
   ci:
     # A single, stable gate for branch protection. Requiring the matrix jobs by name
     # means the protection rule silently stops covering a version whenever the matrix
@@ -241,7 +494,7 @@ jobs:
     # keeps working when the matrix does change.
     name: CI
     if: always()
-    needs: [test, lint, artifacts, parity]
+    needs: [test, lint, artifacts, parity, crewai-adapter, crewai-compatibility, documentation]
     runs-on: ubuntu-latest
     steps:
       - name: Every job must have succeeded

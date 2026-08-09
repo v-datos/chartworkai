@@ -7,6 +7,7 @@
 [![CI](https://github.com/v-datos/chartworkai/actions/workflows/ci.yml/badge.svg)](https://github.com/v-datos/chartworkai/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/chartworkai.svg)](https://pypi.org/project/chartworkai/)
 [![Python](https://img.shields.io/pypi/pyversions/chartworkai.svg)](https://pypi.org/project/chartworkai/)
+[![Documentation](https://img.shields.io/badge/docs-implementation%20guide-176f82.svg)](https://v-datos.github.io/chartworkai/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 **The governance layer for agentic work.**
@@ -113,6 +114,20 @@ scripts/init_project_from_framework.sh /path/to/new_project "Project Name" proje
 ```
 
 The bootstrap script copies the reference templates/prompts/agents into `_framework_*` directories, creates the canonical operating files, seeds the first decision and handoff, installs the compliance checker, and runs it before finishing.
+
+## CrewAI Adapter
+
+The optional `chartworkai-crewai` reference adapter wraps local CrewAI `kickoff` and `akickoff`
+executions and records redacted, schema-versioned run manifests without adding CrewAI to the core
+package. It can also file an explicit handoff; it never turns a runtime result into a governance
+decision.
+
+The adapter is independently versioned and buildable. It is currently available from this
+repository and has not yet been published on PyPI. It depends only on `chartworkai`; users supply
+and secure their own compatible CrewAI runtime, and neither CrewAI nor ChromaDB is declared as an
+adapter dependency. See the
+[`chartworkai-crewai` guide](integrations/crewai/README.md) for compatibility, local installation,
+capture policies, examples, privacy defaults, and failure semantics.
 
 ## When to use it
 

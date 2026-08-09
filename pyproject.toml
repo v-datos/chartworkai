@@ -38,7 +38,7 @@ dev = ["pytest>=7.0", "ruff>=0.5"]
 [project.urls]
 Homepage = "https://github.com/v-datos/chartworkai"
 Repository = "https://github.com/v-datos/chartworkai"
-Documentation = "https://github.com/v-datos/chartworkai/blob/main/IMPLEMENTATION_GUIDE.md"
+Documentation = "https://v-datos.github.io/chartworkai/"
 Changelog = "https://github.com/v-datos/chartworkai/blob/main/CHANGELOG.md"
 Issues = "https://github.com/v-datos/chartworkai/issues"
 
@@ -55,6 +55,8 @@ exclude = [
     "/.venv",
     "/.venv-*",
     "/dist",
+    # Independently versioned and built from integrations/crewai/pyproject.toml.
+    "/integrations",
     "/.DS_Store",
     # CI and publishing configuration describes how this repository is built, not how
     # the package is used. Shipping it adds surface to every install for no benefit.

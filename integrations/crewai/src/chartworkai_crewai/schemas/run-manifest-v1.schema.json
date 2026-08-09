@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chartworkai.dev/schemas/crewai/run-manifest-v1.schema.json",
+  "title": "ChartworkAI CrewAI Run Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "adapter",
+    "runtime",
+    "chartworkai",
+    "crew",
+    "execution",
+    "tasks",
+    "usage",
+    "artifacts",
+    "capture",
+    "output"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "run_id": { "type": "string", "pattern": "^cwrun_[0-9a-f]{32}$" },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "const": "chartworkai-crewai" },
+        "version": { "type": "string" }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "api"],
+      "properties": {
+        "name": { "type": "string", "const": "crewai" },
+        "version": { "type": "string" },
+        "api": { "type": "string", "enum": ["kickoff", "akickoff"] }
+      }
+    },
+    "chartworkai": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project", "profile", "phase", "task_refs"],
+      "properties": {
+        "project": { "type": "string", "maxLength": 512 },
+        "profile": { "type": ["string", "null"], "maxLength": 512 },
+        "phase": { "type": ["integer", "null"], "minimum": 0 },
+        "task_refs": {
+          "type": "array",
+          "maxItems": 256,
+          "items": { "type": "string", "maxLength": 256 }
+        }
+      }
+    },
+    "crew": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "process", "task_count"],
+      "properties": {
+        "id": { "type": ["string", "null"], "maxLength": 512 },
+        "name": { "type": "string", "maxLength": 512 },
+        "process": { "type": "string", "maxLength": 512 },
+        "task_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "started_at",
+        "ended_at",
+        "duration_ms",
+        "input_keys",
+        "error"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["succeeded", "failed", "cancelled"]
+        },
+        "started_at": { "type": "string" },
+        "ended_at": { "type": "string" },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "input_keys": {
+          "type": "array",
+          "maxItems": 256,
+          "items": { "type": "string", "maxLength": 512 }
+        },
+        "error": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string", "maxLength": 200 },
+            "message_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "message": { "type": "string", "maxLength": 2048 }
+          },
+          "required": ["type", "message_sha256"]
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "index",
+          "id",
+          "name",
+          "agent",
+          "status",
+          "output_format",
+          "tool_failure_count"
+        ],
+        "properties": {
+          "index": { "type": "integer", "minimum": 0 },
+          "id": { "type": ["string", "null"], "maxLength": 512 },
+          "name": { "type": ["string", "null"], "maxLength": 512 },
+          "agent": { "type": ["string", "null"], "maxLength": 512 },
+          "status": { "type": "string", "enum": ["completed", "not_completed"] },
+          "output_format": { "type": ["string", "null"] },
+          "tool_failure_count": { "type": "integer", "minimum": 0 },
+          "content": { "type": "object" }
+        }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "total_tokens": { "type": "integer", "minimum": 0 },
+        "prompt_tokens": { "type": "integer", "minimum": 0 },
+        "cached_prompt_tokens": { "type": "integer", "minimum": 0 },
+        "completion_tokens": { "type": "integer", "minimum": 0 },
+        "reasoning_tokens": { "type": "integer", "minimum": 0 },
+        "cache_creation_tokens": { "type": "integer", "minimum": 0 },
+        "successful_requests": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "size_bytes", "media_type"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 1024,
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+          },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "size_bytes": { "type": "integer", "minimum": 0 },
+          "media_type": { "type": "string", "maxLength": 512 }
+        }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "redactor_id",
+        "truncated",
+        "omitted_input_keys",
+        "omitted_tasks",
+        "omitted_artifacts"
+      ],
+      "properties": {
+        "mode": { "type": "string", "enum": ["metadata", "summary", "full"] },
+        "redactor_id": { "type": "string", "maxLength": 128 },
+        "truncated": { "type": "boolean" },
+        "omitted_input_keys": { "type": "integer", "minimum": 0 },
+        "omitted_tasks": { "type": "integer", "minimum": 0 },
+        "omitted_artifacts": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "output": {
+      "type": ["object", "array", "string", "number", "boolean", "null"]
+    }
+  }
+}

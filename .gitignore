@@ -24,6 +24,8 @@ outputs/
 dist/
 build/
 *.egg-info/
+site/
+website/.generated/
 
 # Test and coverage artifacts
 .coverage
@@ -34,4 +36,3 @@ htmlcov/
 # Local assistant/agent state — machine-specific, never part of the product
 .claude/
 .aider*
-

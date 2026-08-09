@@ -147,6 +147,7 @@ Run `./scripts/check_framework_compliance.sh .` regularly. It is your drift alar
 ## Quick reference
 
 **Canonical files**
+
 | File | Purpose |
 |---|---|
 | `PROJECT_CHARTER.md` | Single source of truth: mission, non-goals, profile, `## Stack`, phases, success criteria, decision log |
