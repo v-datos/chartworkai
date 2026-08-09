@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import argparse
-import os
+import posixpath
 import re
 import shutil
 from pathlib import Path, PurePosixPath
@@ -59,7 +59,7 @@ def _relative_site_link(
     fragment: str,
 ) -> str:
     base = destination.parent.as_posix()
-    relative = os.path.relpath(mapped_target.as_posix(), base if base != "." else ".")
+    relative = posixpath.relpath(mapped_target.as_posix(), base if base != "." else ".")
     return PurePosixPath(relative).as_posix() + fragment
 
 
@@ -78,7 +78,7 @@ def rewrite_links(
 
         path_text, separator, fragment_text = target.partition("#")
         fragment = f"#{fragment_text}" if separator else ""
-        resolved = PurePosixPath(os.path.normpath((source.parent / path_text).as_posix()))
+        resolved = PurePosixPath(posixpath.normpath((source.parent / path_text).as_posix()))
 
         mapped = PUBLIC_LINKS.get(resolved)
         if mapped is not None:
