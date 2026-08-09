@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "partner_id": "P-000",
+  "external_partner": true,
+  "payment_confirmed": true,
+  "participant_operated": true,
+  "install_source": "pypi",
+  "project_profile": "generic",
+  "workstream_count": 3,
+  "os_family": "linux",
+  "chartworkai_version": "0.2.0",
+  "install_date": "2026-01-01",
+  "setup_seconds": 2700,
+  "setup_minutes": 45,
+  "strict_compliance_passed": true,
+  "first_governed_action": "task",
+  "follow_up_date": "2026-01-15",
+  "continued_use": true,
+  "intervention_codes": [
+    "DOC"
+  ],
+  "case_study_permission": "anonymized",
+  "case_study_approved_at": "2026-01-16",
+  "private_evidence_ref": "CONSENT-P000-01"
+}

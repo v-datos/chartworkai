@@ -5,19 +5,19 @@
 
 **Last updated:** 2026-08-09
 **Current phase:** Phase 4 — ChartworkAI package & launch
-**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 remains active. T-019 is published and verified; T-021, the paid concierge beta, is the next dispatch.
+**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 remains active. T-021 is in progress: the operator pack and evidence gate are being prepared before three external partner engagements.
 
 ## Active agents
 
 | Agent | Status | Current task | Blocking on |
 |---|---|---|---|
-| Orchestrator | Active | Dispatch T-021 | — |
+| Orchestrator | Active | Run T-021 concierge beta | Three external partners and owner-approved commercial terms |
 | Framework Architect | Standby | DEC-013 filed; available for scope questions | — |
 | Integrations Engineer | Idle | T-018 closed | — |
 | Docs & GTM Engineer | Idle | T-019 closed | — |
 | Template & Docs Engineer | Idle | Available for assignment | — |
-| Dogfood & Compliance QA | Standby | T-018 final QA passed | — |
-| Audit & Research Analyst | Standby | Available for assignment | — |
+| Dogfood & Compliance QA | Active | Validate T-021 evidence gate | — |
+| Audit & Research Analyst | Active | Review beta evidence design | — |
 
 ## Current phase exit criteria (Phase 4)
 
@@ -35,11 +35,12 @@
 
 ## Dispatch queue
 
-- T-021 — **Next:** Paid concierge beta with three design partners
+- T-021 — **In progress:** finalize the operator pack, then run three paid external engagements
 
 ## Open blockers
 
-- None currently filed.
+- Three external design partners have not yet been identified or scheduled.
+- The project owner must approve the fixed fee, currency, payment terms, and outreach recipients.
 
 ## Decision log (recent)
 
