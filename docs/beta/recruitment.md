@@ -22,7 +22,8 @@ This is intended for projects with an existing Git repository, several distinct
 roles or workstreams, and a need for continuity or auditability. ChartworkAI is not
 an agent runtime and the engagement does not include application development.
 
-**Beta fee:** [insert the owner-approved fixed fee and currency]
+**Beta fee:** USD $300 per project plus applicable tax, capped at six total service
+hours.
 
 **Privacy:** you operate your own machine. Source code, credentials, payment data,
 and personal details are not collected in the public ChartworkAI repository.

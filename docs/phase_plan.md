@@ -11,7 +11,7 @@
 
 | Agent | Status | Current task | Blocking on |
 |---|---|---|---|
-| Orchestrator | Active | Run T-021 concierge beta | Three external partners and owner-approved commercial terms |
+| Orchestrator | Active | Recruit and screen T-021 partners | Three external partners |
 | Framework Architect | Standby | DEC-013 filed; available for scope questions | — |
 | Integrations Engineer | Idle | T-018 closed | — |
 | Docs & GTM Engineer | Idle | T-019 closed | — |
@@ -40,12 +40,13 @@
 ## Open blockers
 
 - Three external design partners have not yet been identified or scheduled.
-- The project owner must approve the fixed fee, currency, payment terms, and outreach recipients.
+- Outreach recipients or an owner-authorized recruitment channel are still required.
 
 ## Decision log (recent)
 
 | ID | Date | Topic | Status | Authority |
 |---|---|---|---|---|
+| [DEC-014](decisions/20260809_DEC014_concierge_beta_terms.md) | 2026-08-09 | Set the T-021 concierge beta commercial terms | Decided | Orchestrator (with the user) |
 | [DEC-013](decisions/20260807_DEC013_crewai_runtime_adapter.md) | 2026-08-07 | Establish the CrewAI runtime-adapter boundary and run-manifest contract | Decided | Framework Architect / Orchestrator (with the user) |
 | [DEC-012](decisions/20260806_DEC012_generic_and_custom_profiles.md) | 2026-08-06 | Make presets optional and support custom profiles | Decided | Framework Architect / Dogfood & Compliance QA |
 | [DEC-011](decisions/20260806_DEC011_authoritative_manifest.md) | 2026-08-06 | Make framework.json the executable contract | Decided | Framework Architect / Dogfood & Compliance QA |

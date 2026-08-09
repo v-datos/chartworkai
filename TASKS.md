@@ -10,9 +10,10 @@ Last updated: 2026-08-09
   Inputs: `docs/beta/`, three owner-approved external partners, private commercial records
   Expected output: three measured external installs and one approved public case study
   Done criteria: `python scripts/check_beta_evidence.py` exits zero
-  Notes: Operator pack and evidence validator are implemented. External recruitment, payment,
-  live sessions, follow-ups, and publication permission require the user; no partner result may
-  be inferred or fabricated.
+  Notes: DEC-014 fixes the offer at USD $300 plus applicable tax, capped at six service hours.
+  Operator pack and evidence validator are implemented. External recruitment, payment, live
+  sessions, follow-ups, and publication permission require the user; no partner result may be
+  inferred or fabricated.
 
 ## Queued (Phase 4 — ChartworkAI package & launch)
 
