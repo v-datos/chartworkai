@@ -112,6 +112,7 @@ Decisions that change scope, conventions, or phase gating are recorded here and 
 | 2026-08-06 | Publish through staged OIDC workflows | Orchestrator / Dogfood & Compliance QA | `docs/decisions/20260806_DEC010_trusted_publishing.md` |
 | 2026-08-06 | Make framework.json the executable contract | Framework Architect / Dogfood & Compliance QA | `docs/decisions/20260806_DEC011_authoritative_manifest.md` |
 | 2026-08-06 | Make presets optional and support project-owned custom profiles | Framework Architect / Dogfood & Compliance QA | `docs/decisions/20260806_DEC012_generic_and_custom_profiles.md` |
+| 2026-08-07 | Establish the CrewAI runtime-adapter boundary and run-manifest contract | Framework Architect / Orchestrator (with the user) | `docs/decisions/20260807_DEC013_crewai_runtime_adapter.md` |
 
 ## 9. Risks and mitigations
 

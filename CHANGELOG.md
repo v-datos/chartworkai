@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Public documentation site (T-019).** Added a responsive GitHub Pages site whose
+  homepage is generated from the canonical implementation guide. The site includes search,
+  CLI and profile references, CrewAI integration guidance, offline link and accessibility
+  validation, protected CI coverage, and an OIDC Pages deployment workflow.
+- **CrewAI governance adapter (T-018 / DEC-013).** Added the independently buildable,
+  Apache-2.0 `chartworkai-crewai` reference adapter for local synchronous and asynchronous
+  CrewAI executions. It writes redacted schema-v1 run manifests with artifact hashes and can
+  optionally file explicit handoffs. The adapter is not yet published on PyPI and does not add
+  dependencies to the core `chartworkai` distribution. Under the Architect's security ruling, the
+  adapter package itself depends only on `chartworkai`: users supply CrewAI, no runtime extra is
+  provided while CVE-2026-45829 remains unresolved, and package metadata declares neither CrewAI
+  nor ChromaDB.
+
 ## [chartworkai 0.2.0] - 2026-08-07
 
 This minor release makes ChartworkAI project-agnostic by default and adds bounded,

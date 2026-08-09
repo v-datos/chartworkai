@@ -1,6 +1,6 @@
 # STATUS — ChartworkAI (formerly AI Workflow Framework)
 
-## 2026-08-07 — Generic core and custom profiles
+## 2026-08-07 — Generic core, public release, and CrewAI adapter
 
 **Prepared by:** Orchestrator
 
@@ -23,8 +23,14 @@
   and personal-identifier gates before publishing. A fresh public install, version
   check, generic-default initialization, and state smoke test passed. PyPI and the
   matching GitHub release are live.
+- **CrewAI governance adapter complete (T-018 / DEC-013)** — independent
+  `chartworkai-crewai` 0.1.0 provides schema-v1 redacted immutable manifests, sync/async capture,
+  explicit handoffs, and no automatic decisions. CrewAI remains user-supplied under the CVE
+  embargo. Final QA passed 1,374 core and 75 adapter tests, strict self-audit at 33/0/0, strict
+  Twine validation for four artifacts, offline CrewAI 1.15.10/1.15.13 checks, and a security
+  re-audit with no blockers. The supported operating-system boundary is Linux and macOS.
 
-**Next:** build the CrewAI adapter (T-018).
+**Next:** dispatch T-019 — docs site and landing page. Phase 4 remains open.
 
 ---
 

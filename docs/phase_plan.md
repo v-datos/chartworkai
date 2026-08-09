@@ -3,18 +3,20 @@
 > ⚠️ **STOP — READ BEFORE EDITING.**
 > 1. Read this entire file first. 2. Edit sections **in place** — never append a second copy of a section. 3. Hard cap: **200 lines**. 4. If a section is duplicated or this file exceeds the cap, prune to a single canonical form before adding anything.
 
-**Last updated:** 2026-08-07
+**Last updated:** 2026-08-09
 **Current phase:** Phase 4 — ChartworkAI package & launch
-**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 ships the product as software: `chartworkai` 0.2.0 is live on PyPI, and framework contract 1.2.0 makes the generic core the initialization default while retaining six optional presets and adding bounded project-owned profiles. T-025 and its public package release T-026 are complete; next dispatch is the CrewAI adapter (T-018).
+**Orchestrator note:** Phases 1–3 are complete and verified (see `docs/reproducibility/`). Phase 4 remains active. T-019 is implementing and publishing the canonical implementation guide as the public documentation front door.
 
 ## Active agents
 
 | Agent | Status | Current task | Blocking on |
 |---|---|---|---|
-| Orchestrator | Idle | Available for assignment | — |
-| Framework Architect | Idle | Available for assignment | — |
+| Orchestrator | Active | Oversee T-019 publication | — |
+| Framework Architect | Standby | DEC-013 filed; available for scope questions | — |
+| Integrations Engineer | Idle | T-018 closed | — |
+| Docs & GTM Engineer | Active | T-019 docs site and landing page | Publication gate |
 | Template & Docs Engineer | Idle | Available for assignment | — |
-| Dogfood & Compliance QA | Idle | Available for assignment | — |
+| Dogfood & Compliance QA | Standby | T-018 final QA passed | — |
 | Audit & Research Analyst | Standby | Available for assignment | — |
 
 ## Current phase exit criteria (Phase 4)
@@ -27,11 +29,13 @@
 - [x] `framework.json` drives runtime, shell projections, and profile tables (T-016).
 - [x] Generic initialization and project-owned custom profiles pass all gates (T-025).
 - [x] ChartworkAI 0.2.0 published through staged OIDC after TestPyPI proof (T-026).
+- [x] Public CrewAI governance adapter passes DEC-013 Amendment A, including the dependency embargo and hardened capture/write gates (T-018).
+- [ ] Docs site and landing page are published (T-019).
+- [ ] Three external design partners complete measured installs (T-021).
 
-## Dispatch queue (next up)
+## Dispatch queue
 
-- T-018 — CrewAI adapter (`chartworkai export/ingest crewai`)
-- T-019 — Docs site + landing page
+- T-019 — **In progress:** Docs site + landing page
 - T-021 — Paid concierge beta with three design partners
 
 ## Open blockers
@@ -42,6 +46,7 @@
 
 | ID | Date | Topic | Status | Authority |
 |---|---|---|---|---|
+| [DEC-013](decisions/20260807_DEC013_crewai_runtime_adapter.md) | 2026-08-07 | Establish the CrewAI runtime-adapter boundary and run-manifest contract | Decided | Framework Architect / Orchestrator (with the user) |
 | [DEC-012](decisions/20260806_DEC012_generic_and_custom_profiles.md) | 2026-08-06 | Make presets optional and support custom profiles | Decided | Framework Architect / Dogfood & Compliance QA |
 | [DEC-011](decisions/20260806_DEC011_authoritative_manifest.md) | 2026-08-06 | Make framework.json the executable contract | Decided | Framework Architect / Dogfood & Compliance QA |
 | [DEC-010](decisions/20260806_DEC010_trusted_publishing.md) | 2026-08-06 | Publish through staged OIDC workflows | Decided | Orchestrator / Dogfood & Compliance QA |
