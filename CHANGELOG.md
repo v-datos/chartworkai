@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Paid concierge beta operations (T-021).** Added the three-partner recruitment,
+  screening, installation, follow-up, privacy, and case-study-permission protocol plus a
+  fail-closed validator for de-identified completion evidence. The validator deliberately
+  remains red until three real paid external installs and one separate case-study approval
+  are recorded.
 - **Public documentation site (T-019).** Added a responsive GitHub Pages site whose
   homepage is generated from the canonical implementation guide. The site includes search,
   CLI and profile references, CrewAI integration guidance, offline link and accessibility

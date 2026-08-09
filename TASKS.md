@@ -4,11 +4,19 @@ Last updated: 2026-08-09
 
 ## In Progress
 
-## Queued (Phase 4 — ChartworkAI package & launch)
-
 - [ ] **T-021 — Paid concierge beta with three design partners**
   Owner: Orchestrator (with the user)
-  Done criteria: three external installs, measured setup time, and permission to publish one case study
+  Started: 2026-08-09
+  Inputs: `docs/beta/`, three owner-approved external partners, private commercial records
+  Expected output: three measured external installs and one approved public case study
+  Done criteria: `python scripts/check_beta_evidence.py` exits zero
+  Notes: Operator pack and evidence validator are implemented. External recruitment, payment,
+  live sessions, follow-ups, and publication permission require the user; no partner result may
+  be inferred or fabricated.
+
+## Queued (Phase 4 — ChartworkAI package & launch)
+
+- None while T-021 is active.
 
 ## Backlog
 

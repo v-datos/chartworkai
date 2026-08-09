@@ -1,5 +1,24 @@
 # STATUS — ChartworkAI (formerly AI Workflow Framework)
 
+## 2026-08-09 — Concierge beta opened
+
+**Prepared by:** Orchestrator
+
+**In progress:**
+- **T-021 dispatched** — a fixed-scope, 14-day paid concierge beta is being prepared
+  for exactly three external design partners.
+- **Evidence boundary defined** — completion requires three paid external installs,
+  measured time to the first clean strict check, one governed action and follow-up per
+  partner, and final publication permission for at least one case study.
+- **Privacy boundary defined** — only de-identified attestations belong in Git; partner
+  identities, repositories, payments, consent records, and raw notes remain private.
+
+**Blocked on the project owner:** approve the commercial terms and identify or authorize
+outreach to three external partners. T-021 remains open until the real engagements and
+case-study approval are complete.
+
+---
+
 ## 2026-08-09 — Public documentation site
 
 **Prepared by:** Orchestrator
@@ -100,26 +119,6 @@
 - Compliance linter passes cleanly on the framework repository (pass).
 
 **Next:** Product launch.
-
----
-
-## 2026-06-13 — Phase 2: T-008, T-009, T-010 structural living-doc fixes and hardening (Phase 2 Complete)
-
-**Prepared by:** Template & Docs Engineer
-
-**Shipped:**
-- Auto-generation of `phase_plan.md` (T-008): Shipped `scripts/generate_phase_plan.sh` to compile `docs/phase_plan.md` dynamically from the current repository state (matching agent states, exit criteria completion, recent decisions, and dispatch queue).
-- Decay and Bloat Linter Controls (T-008): Updated `scripts/check_framework_compliance.sh` with staleness checks (comparing `phase_plan.md` date with `STATUS.md` date) and `STATUS.md` line count (150 lines cap) / entry count bloat warnings.
-- Decision Log Hardening (T-009): Updated `SOP.md` with namespace prefixing rules (`DEC-`, `DQ-`, `SC-`, `MD-`). Configured the compliance checker to enforce this filename format and print warnings for sparse decision logs.
-- Handoff Resolution (T-010): Standardized the dual-weight handoff rule in `SOP.md` and `AGENTS.md` (brief summaries in `TASKS.md` findings within a phase; full markdown handoffs only at phase boundaries).
-
-**Verified:**
-- `sh -n` syntax check clean on `generate_phase_plan.sh` (pass).
-- Tested staleness, bloat, decision log namespaces, and sparse decision warnings on test fixtures (all fail or warn correctly with exit code 1 or 0).
-- Successfully ran `./scripts/generate_phase_plan.sh .` to generate a clean, updated `docs/phase_plan.md` (pass).
-- Compliance linter passes cleanly on the framework repository (pass).
-
-**Next:** Phase 2 closes. Prepare for Phase 3 (Launch & Install UX: linting leftover scaffolds, tool-leak checkers, CLI installer, positioning decisions).
 
 ---
 
