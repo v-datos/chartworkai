@@ -4,10 +4,6 @@ Last updated: 2026-08-09
 
 ## In Progress
 
-- [ ] **T-019 — Docs site + landing page**
-  Owner: Docs & GTM Engineer
-  Done criteria: published site with the implementation guide as the front door
-
 ## Queued (Phase 4 — ChartworkAI package & launch)
 
 - [ ] **T-021 — Paid concierge beta with three design partners**
@@ -22,6 +18,12 @@ Last updated: 2026-08-09
 
 ## Done
 
+- [x] **T-019 — Docs site + landing page** — 2026-08-09 — Findings: the canonical
+  implementation guide is live at https://v-datos.github.io/chartworkai/ with responsive
+  navigation, search, CLI/profile/integration references, and the existing ChartworkAI brand.
+  PR #7 passed all 21 protected checks; Pages run 31338586422 built, validated, and deployed
+  the site. Offline HTML/link/accessibility checks and browser QA at 1440x900, 390x844, and
+  375x667 passed with no console warnings or horizontal document overflow.
 - [x] **T-018 — CrewAI governance adapter (`chartworkai-crewai`)** — 2026-08-07 —
   Findings: independent `chartworkai-crewai` 0.1.0 implements schema-v1 redacted immutable
   manifests, sync/async execution capture, explicit handoffs, and no automatic decisions. CrewAI
