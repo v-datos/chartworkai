@@ -12,10 +12,11 @@
   partner, and final publication permission for at least one case study.
 - **Privacy boundary defined** — only de-identified attestations belong in Git; partner
   identities, repositories, payments, consent records, and raw notes remain private.
+- **Commercial terms approved (DEC-014)** — USD $300 per project plus applicable tax,
+  capped at six total service hours.
 
-**Blocked on the project owner:** approve the commercial terms and identify or authorize
-outreach to three external partners. T-021 remains open until the real engagements and
-case-study approval are complete.
+**Blocked on recruitment:** identify or authorize outreach to three external partners.
+T-021 remains open until the real engagements and case-study approval are complete.
 
 ---
 

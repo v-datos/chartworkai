@@ -22,6 +22,9 @@ records do not satisfy the gate.
 
 ## Standard engagement
 
+- **Fee:** USD $300 per project plus applicable tax.
+- **Service cap:** six total operator hours per project, including preparation,
+  installation, support, and follow-up.
 - **Preparation:** suitability screen, commercial terms, prerequisites, and privacy
   boundaries confirmed before the live session.
 - **Installation session:** up to 90 minutes. The participant operates their own
@@ -31,9 +34,9 @@ records do not satisfy the gate.
 - **Deliverables:** initialized governance layer, clean compliance result, first
   governed action, and a de-identified outcome record.
 
-The fee, payment method, taxes, cancellation terms, and support boundaries belong in
-a private written proposal approved by the project owner. Do not put financial or
-participant-identifying records in this public repository.
+Payment method, payment deadline, cancellation or refund terms, tax treatment, and
+other jurisdiction-specific terms belong in a private written proposal. Do not put
+financial or participant-identifying records in this public repository.
 
 ## Partner fit
 
