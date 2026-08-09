@@ -7,6 +7,28 @@ This file contains archived status reports for the AI Workflow Framework product
 
 ---
 
+## 2026-06-13 — Phase 2: T-007b package remaining extensions (claims gate, experiment log, assistant primer)
+
+**Prepared by:** Template & Docs Engineer
+
+**Shipped:**
+- Packaged the remaining three extensions under `extensions/` as optional, opt-in modules:
+  - `claims-gate/` — Staging table and evidence-tier promotion for investigative/knowledge-base profiles. Includes a `check_claims.sh` verification script to ensure no unverified (Tier 3) assertions are promoted to findings.
+  - `experiment-log/` — Run and score-tracking ledger for competition/ML profiles. Includes a `log_run.sh` automation script to log hyperparameters and metrics programmatically.
+  - `assistant-primer/` — Repo-native onboarding guide for AI assistants. Includes a `verify_primer.sh` script to keep onboarding docs in sync with `PROJECT_CHARTER.md` and `AGENTS.md`.
+- Updated catalog in `extensions/README.md` and registered them in the `framework.json` manifest.
+
+**Verified:**
+- Checked syntax of all scripts using `sh -n` (all pass).
+- Tested `check_claims.sh` on valid and invalid claim files, verifying correct exit codes and error reports.
+- Tested `log_run.sh` by appending runs to the experiment log.
+- Tested `verify_primer.sh` on aligned and misaligned primer configurations.
+- Framework repository compliance checker runs and passes (exit 0).
+
+**Next:** T-008 — structural living-document decay fixes (phase_plan generation + staleness & bloat checks).
+
+---
+
 ## 2026-06-07 — Phase 2: T-007 external-tracker sync (first extension)
 
 **Prepared by:** Orchestrator
